@@ -1,10 +1,13 @@
+// --- src/main.js ---
+// Main Game Engine Controller, Loop Orchestrator & Viewport Renderer
+
 import * as Audio from './audio.js';
 import * as Input from './input.js';
 import { createPlayerGlider } from './glider.js';
 import { createPlayerState, formatTime, updatePlayerPhysics, updatePlayerCamera } from './flight.js';
 import * as World from './world.js';
 import * as UI from './ui.js';
-import { MAPS_LIST, getMapByIndex, getTotalMaps } from './maps/mapRegistry.js';
+import { getMapByIndex, getTotalMaps } from './maps/mapRegistry.js';
 
 // --- Game Engine State ---
 let currentGameState = 'menu'; // 'menu' | 'map-select' | 'flight'
@@ -68,9 +71,17 @@ function launchFlight() {
   currentGameState = 'flight';
   document.body.className = `mode-${selectedMode}`;
 
-  // Build the selected world
+  // 1. Build the selected world
   const activeMap = getMapByIndex(currentMapIndex);
   World.loadMap(activeMap);
+
+  // 2. Automatically set Quick Action water level to Drain All for 05_dunes
+  if (activeMap.id === '05_dunes') {
+    World.setWaterLevel(-500);
+    UI.syncWaterLevelUI(-500);
+  } else {
+    UI.syncWaterLevelUI(World.getWaterLevel());
+  }
 
   resetFlightMatch();
 }
@@ -84,7 +95,7 @@ function resetFlightMatch() {
     activeMap.spawns.p1.pos[1],
     activeMap.spawns.p1.pos[2]
   );
-  p1.yaw = 0.0;
+  p1.yaw = activeMap.spawns.p1.yaw || 0.0;
   p1.pitch = 0.0;
   p1.roll = 0.0;
   p1.steerX = 0;
@@ -120,7 +131,7 @@ function resetFlightMatch() {
     p2.intro.elapsed = 0.0;
   } else {
     p2.pos.set(8, activeMap.spawns.p1.pos[1], activeMap.spawns.p1.pos[2]);
-    p2.yaw = 0.0;
+    p2.yaw = activeMap.spawns.p2Race.yaw || 0.0;
     p2.pitch = 0.0;
     p2.roll = 0.0;
     p2.steerX = 0;
@@ -181,6 +192,19 @@ UI.setupUIEventListeners({
       invBtn.classList.toggle('active', invertPitch);
       invBtn.innerText = invertPitch ? '↕ Invert: ON' : '↕ Invert: OFF';
     }
+  },
+  onWaterLevelChange: (newLevel) => {
+    World.setWaterLevel(newLevel);
+  },
+  onWaterLevelReset: () => {
+    const activeMap = getMapByIndex(currentMapIndex);
+    const defaultLevel = (activeMap.id === '05_dunes')
+      ? -500
+      : ((activeMap.ocean && activeMap.ocean.level !== undefined)
+          ? activeMap.ocean.level
+          : (activeMap.ocean ? 0 : -500));
+    World.setWaterLevel(defaultLevel);
+    UI.syncWaterLevelUI(defaultLevel);
   }
 });
 
@@ -253,7 +277,7 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const t = clock.getElapsedTime();
 
-  // Poll Controllers for ABXY pairing
+  // Poll Gamepads for ABXY pairing
   const gpInputs = Input.pollGamepads(() => UI.updateControllerUI());
 
   // Carousel Gamepad / Keyboard Navigation
@@ -268,12 +292,12 @@ function animate() {
         UI.showModeMenu();
       }
     }
-    return; // Don't process flight logic while browsing maps
+    return; // Stop flight updates when browsing maps
   }
 
   if (currentGameState !== 'flight') return;
 
-  // Flight Steering Input Resolver
+  // Steering Input Hierarchy (Pad > Touch Stick > Keys > Mouse)
   const steerP1 = { x: 0, y: 0 };
   const hasArrowKeys = Input.keys.ArrowLeft || Input.keys.ArrowRight || Input.keys.ArrowUp || Input.keys.ArrowDown;
   const hasSoloWasd = (selectedMode === 'single') && (Input.keys.a || Input.keys.A || Input.keys.d || Input.keys.D || Input.keys.w || Input.keys.W || Input.keys.s || Input.keys.S);
@@ -313,23 +337,23 @@ function animate() {
     }
   }
 
-  // Step Flight Aerodynamics
+  // Aerodynamics & Kinematics Step
   const spdP1 = updatePlayerPhysics(p1, gliderP1, steerP1, 'p1', delta, t, invertPitch, World.vortexRings, onGateCleared, onFinish);
   let spdP2 = 0;
   if (selectedMode === 'race' || selectedMode === 'coop') {
     spdP2 = updatePlayerPhysics(p2, gliderP2, steerP2, 'p2', delta, t, invertPitch, World.vortexRings, onGateCleared, onFinish);
   }
 
-  // Update Environment & Clouds
+  // World Simulation (Clouds, Waves, Gate Rings)
   World.updateWorld(delta, t);
 
-  // Cameras
+  // Camera Updates
   updatePlayerCamera(World.camera1, p1, delta);
   if (selectedMode === 'race' || selectedMode === 'coop') {
     updatePlayerCamera(World.camera2, p2, delta);
   }
 
-  // Update HUD
+  // Telemetry Readouts
   const elapsed = (raceStartTime > 0) ? (performance.now() - raceStartTime) / 1000 : 0;
   const timeP1Formatted = formatTime(p1.finishTime !== null ? p1.finishTime : elapsed);
   const timeP2Formatted = formatTime(p2.finishTime !== null ? p2.finishTime : elapsed);
@@ -341,7 +365,7 @@ function animate() {
 
   UI.updateTelemetry(p1, p2, spdP1, spdP2, totalGates, selectedMode, timeP1Formatted, timeP2Formatted, distP1, distP2);
 
-  // Viewport Rendering
+  // Split-Screen or Fullscreen Rendering
   const width = window.innerWidth;
   const height = window.innerHeight;
 
@@ -349,21 +373,21 @@ function animate() {
     const halfWidth = Math.floor(width * 0.5);
     World.renderer.setScissorTest(true);
 
-    // Left Screen: Player 1
+    // Left Viewport (Player 1)
     World.renderer.setViewport(0, 0, halfWidth, height);
     World.renderer.setScissor(0, 0, halfWidth, height);
     World.camera1.aspect = halfWidth / height;
     World.camera1.updateProjectionMatrix();
     World.renderer.render(World.scene, World.camera1);
 
-    // Right Screen: Player 2
+    // Right Viewport (Player 2)
     World.renderer.setViewport(halfWidth, 0, width - halfWidth, height);
     World.renderer.setScissor(halfWidth, 0, width - halfWidth, height);
     World.camera2.aspect = (width - halfWidth) / height;
     World.camera2.updateProjectionMatrix();
     World.renderer.render(World.scene, World.camera2);
   } else {
-    // Solo Fullscreen
+    // Single Pilot Fullscreen
     World.renderer.setScissorTest(false);
     World.renderer.setViewport(0, 0, width, height);
     World.camera1.aspect = width / height;
@@ -390,6 +414,6 @@ window.addEventListener('resize', () => {
   }
 });
 
-// Launch directly on Menu
+// Launch on Menu
 UI.showModeMenu();
 animate();

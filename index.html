@@ -70,7 +70,6 @@
   <!-- STAGE 2: MAP CAROUSEL / WORLD SELECTOR MODAL -->
   <div id="map-carousel-modal" class="carousel-modal">
     <div class="carousel-wrapper">
-      
       <div class="carousel-header">
         <span class="badge-tag" id="selected-mode-badge">1 PLAYER (SOLO)</span>
         <h2 class="carousel-title">SELECT WORLD</h2>
@@ -79,12 +78,10 @@
 
       <!-- CAROUSEL STAGE -->
       <div class="carousel-stage">
-        <!-- Prev Button -->
         <button id="carousel-prev-btn" class="carousel-arrow-btn arrow-left no-joystick" aria-label="Previous Map">
           <span>&#10094;</span>
         </button>
 
-        <!-- Cards Track -->
         <div class="carousel-cards-track">
           <!-- Previous Map Thumbnail Preview -->
           <div id="card-prev" class="carousel-card card-side card-left no-joystick">
@@ -122,7 +119,6 @@
           </div>
         </div>
 
-        <!-- Next Button -->
         <button id="carousel-next-btn" class="carousel-arrow-btn arrow-right no-joystick" aria-label="Next Map">
           <span>&#10095;</span>
         </button>
@@ -141,17 +137,57 @@
       <div class="carousel-nav-hints">
         <span>🎮 D-Pad / Left Stick ◀ ▶ = Scroll Worlds &bull; [A] Confirm &bull; [B] Return</span>
       </div>
-
     </div>
   </div>
 
-  <!-- IN-FLIGHT TOOLBAR -->
+  <!-- IN-FLIGHT TOP-LEFT TOOLBAR -->
   <div id="mid-controls-bar">
     <button id="mobile-btn" class="mid-bar-btn no-joystick">📱 Fullscreen</button>
     <button id="menu-toggle-btn" class="mid-bar-btn no-joystick">🎮 Mode</button>
     <button id="map-select-btn" class="mid-bar-btn no-joystick">🗺️ Change Map</button>
     <button id="invert-btn" class="mid-bar-btn no-joystick">↕ Invert: OFF</button>
     <button id="reset-btn" class="mid-bar-btn no-joystick">↺ Reset</button>
+  </div>
+
+  <!-- QUICK ACTIONS DROPDOWN (RIGHT SIDE) -->
+  <div id="quick-actions-container" class="no-joystick">
+    <button id="quick-actions-btn" class="quick-actions-toggle no-joystick">
+      <span>⚡ Quick Actions</span> <span id="quick-actions-arrow">▾</span>
+    </button>
+    
+    <div id="quick-actions-menu" class="quick-actions-panel no-joystick">
+      <div class="qa-header">
+        <span class="qa-title">QUICK ACTIONS & WORLD</span>
+      </div>
+
+      <!-- Real-Time Water Level Adjustment -->
+      <div class="qa-control-group">
+        <div class="qa-label-row">
+          <span class="qa-label">🌊 Water Altitude:</span>
+          <span id="qa-water-val" class="qa-val-badge">0m</span>
+        </div>
+        <input type="range" id="qa-water-slider" min="-300" max="300" step="1" value="0" class="qa-slider no-joystick" />
+        <div class="qa-slider-ticks">
+          <span>-300m (Drain)</span>
+          <span>0m</span>
+          <span>+300m (Flood)</span>
+        </div>
+      </div>
+
+      <!-- Water Presets -->
+      <div class="qa-btn-grid">
+        <button id="qa-water-reset" class="qa-action-btn no-joystick">↺ Reset Water</button>
+        <button id="qa-water-drain" class="qa-action-btn no-joystick">🏜️ Drain All</button>
+      </div>
+
+      <div class="qa-divider"></div>
+
+      <!-- Quick Shortcuts -->
+      <div class="qa-btn-grid">
+        <button id="qa-btn-invert" class="qa-action-btn no-joystick">↕ Invert Pitch</button>
+        <button id="qa-btn-reset" class="qa-action-btn no-joystick">↺ Respawn</button>
+      </div>
+    </div>
   </div>
 
   <!-- Split Screen Divider -->

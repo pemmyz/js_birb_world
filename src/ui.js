@@ -1,4 +1,7 @@
-import { playCarouselTick, playConfirmBeep } from './audio.js';
+// --- src/ui.js ---
+// UI Management: Menus, Carousel, Quick Actions, HUD Telemetry & Modals
+
+import { playCarouselTick } from './audio.js';
 import { p1GamepadIndex, p2GamepadIndex } from './input.js';
 
 // DOM Bindings
@@ -6,7 +9,7 @@ const startMenuModal = document.getElementById('start-menu-modal');
 const carouselModal = document.getElementById('map-carousel-modal');
 const raceFinishModal = document.getElementById('race-finish-modal');
 
-// Controller status
+// Controller status slots
 const p1StatusEl = document.getElementById('p1-pad-status');
 const p2StatusEl = document.getElementById('p2-pad-status');
 
@@ -94,10 +97,20 @@ export function updateCarouselCard(currentMap, prevMap, nextMap) {
     viewportMountain.style.background = currentMap.preview.mountainColor;
     viewportMountain.style.clipPath = currentMap.preview.clipPath;
   }
-  if (viewportWater) viewportWater.style.background = currentMap.preview.waterColor;
+
+  // Handle water bar visibility for dry maps
+  if (viewportWater) {
+    if (currentMap.ocean && (currentMap.ocean.level === undefined || currentMap.ocean.level > -450)) {
+      viewportWater.style.display = 'block';
+      viewportWater.style.background = currentMap.preview.waterColor || '#1da2b4';
+    } else {
+      viewportWater.style.display = 'none';
+    }
+  }
+
   if (viewportTag) viewportTag.innerText = currentMap.biome;
 
-  // Side Previews
+  // Side Preview Cards
   if (prevTitle) prevTitle.innerText = `${prevMap.icon} ${prevMap.name}`;
   if (nextTitle) nextTitle.innerText = `${nextMap.icon} ${nextMap.name}`;
 }
@@ -143,6 +156,17 @@ export function updateTelemetry(p1, p2, spdP1, spdP2, totalGates, gameMode, time
   }
 }
 
+export function syncWaterLevelUI(level) {
+  const qaWaterSlider = document.getElementById('qa-water-slider');
+  const qaWaterVal = document.getElementById('qa-water-val');
+  if (qaWaterSlider) {
+    qaWaterSlider.value = Math.max(-300, Math.min(300, level));
+  }
+  if (qaWaterVal) {
+    qaWaterVal.innerText = level <= -450 ? 'DRAINED' : `${Math.round(level)}m`;
+  }
+}
+
 export function setupUIEventListeners(handlers) {
   // Mode selection buttons
   document.getElementById('btn-mode-single').addEventListener('click', () => handlers.onSelectMode('single'));
@@ -158,7 +182,7 @@ export function setupUIEventListeners(handlers) {
   document.getElementById('btn-confirm-map').addEventListener('click', () => handlers.onConfirmMap());
   document.getElementById('btn-carousel-back').addEventListener('click', () => handlers.onBackToMenu());
 
-  // In-flight top-left controls
+  // In-flight top-left toolbar buttons
   document.getElementById('menu-toggle-btn').addEventListener('click', () => handlers.onBackToMenu());
   document.getElementById('map-select-btn').addEventListener('click', () => handlers.onOpenMapCarousel());
   document.getElementById('reset-btn').addEventListener('click', () => handlers.onResetMatch());
@@ -168,4 +192,57 @@ export function setupUIEventListeners(handlers) {
   document.getElementById('btn-rematch').addEventListener('click', () => handlers.onResetMatch());
   document.getElementById('btn-change-map').addEventListener('click', () => handlers.onOpenMapCarousel());
   document.getElementById('btn-back-menu').addEventListener('click', () => handlers.onBackToMenu());
+
+  // Quick Actions Dropdown (Right side)
+  const qaContainer = document.getElementById('quick-actions-container');
+  const qaBtn = document.getElementById('quick-actions-btn');
+  const qaWaterSlider = document.getElementById('qa-water-slider');
+  const qaWaterVal = document.getElementById('qa-water-val');
+
+  if (qaBtn && qaContainer) {
+    qaBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      qaContainer.classList.toggle('open');
+      qaBtn.classList.toggle('active', qaContainer.classList.contains('open'));
+    });
+
+    window.addEventListener('click', (e) => {
+      if (!qaContainer.contains(e.target)) {
+        qaContainer.classList.remove('open');
+        qaBtn.classList.remove('active');
+      }
+    });
+  }
+
+  // Real-Time Water Slider
+  if (qaWaterSlider) {
+    qaWaterSlider.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      if (qaWaterVal) qaWaterVal.innerText = `${Math.round(val)}m`;
+      if (handlers.onWaterLevelChange) handlers.onWaterLevelChange(val);
+    });
+  }
+
+  // Quick Action Presets
+  const qaResetWater = document.getElementById('qa-water-reset');
+  if (qaResetWater) {
+    qaResetWater.addEventListener('click', () => {
+      if (handlers.onWaterLevelReset) handlers.onWaterLevelReset();
+    });
+  }
+
+  const qaDrainWater = document.getElementById('qa-water-drain');
+  if (qaDrainWater) {
+    qaDrainWater.addEventListener('click', () => {
+      if (handlers.onWaterLevelChange) handlers.onWaterLevelChange(-500);
+      if (qaWaterSlider) qaWaterSlider.value = -300;
+      if (qaWaterVal) qaWaterVal.innerText = 'DRAINED';
+    });
+  }
+
+  const qaInvert = document.getElementById('qa-btn-invert');
+  if (qaInvert) qaInvert.addEventListener('click', () => handlers.onToggleInvert());
+
+  const qaRespawn = document.getElementById('qa-btn-reset');
+  if (qaRespawn) qaRespawn.addEventListener('click', () => handlers.onResetMatch());
 }

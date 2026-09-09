@@ -1,4 +1,5 @@
-// --- Dynamic World Builder & Environment Manager ---
+// --- src/world.js ---
+// Dynamic World Builder, Environment Manager & Scene Lifecycle Controller
 
 export let scene = null;
 export let renderer = null;
@@ -11,12 +12,17 @@ let fillLight = null;
 
 let terrainMesh = null;
 let oceanMesh = null;
+let currentWaterLevel = 0;
+
 const islandGroup = new THREE.Group();
 const cloudGroup = new THREE.Group();
 const vortexGroup = new THREE.Group();
 
 export const vortexRings = [];
 
+/**
+ * Initializes the Three.js scene, renderer, cameras, and base scene groups.
+ */
 export function initWorld(container) {
   scene = new THREE.Scene();
 
@@ -31,7 +37,7 @@ export function initWorld(container) {
   renderer.setScissorTest(false);
   container.appendChild(renderer.domElement);
 
-  // Lights
+  // Default lighting
   ambientLight = new THREE.AmbientLight(0xdcf4ff, 0.75);
   sunLight = new THREE.DirectionalLight(0xfff6dd, 1.1);
   sunLight.position.set(200, 450, 250);
@@ -44,25 +50,34 @@ export function initWorld(container) {
   scene.add(vortexGroup);
 }
 
+/**
+ * Recursively disposes of Three.js geometries and materials to avoid GPU memory leaks.
+ */
 function disposeHierarchy(obj) {
   while (obj.children.length > 0) {
     const child = obj.children[0];
     disposeHierarchy(child);
     if (child.geometry) child.geometry.dispose();
     if (child.material) {
-      if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-      else child.material.dispose();
+      if (Array.isArray(child.material)) {
+        child.material.forEach(m => m.dispose());
+      } else {
+        child.material.dispose();
+      }
     }
     obj.remove(child);
   }
 }
 
+/**
+ * Builds or rebuilds the entire world based on the selected map configuration object.
+ */
 export function loadMap(mapConfig) {
-  // 1. Atmosphere & Fog
+  // 1. Atmosphere, Sky & Fog
   scene.background = new THREE.Color(mapConfig.skyColor);
   scene.fog = new THREE.FogExp2(new THREE.Color(mapConfig.fogColor), mapConfig.fogDensity);
 
-  // 2. Lights
+  // 2. Dynamic Directional & Ambient Lighting
   if (mapConfig.lighting) {
     ambientLight.color.setHex(mapConfig.lighting.ambient.color);
     ambientLight.intensity = mapConfig.lighting.ambient.intensity;
@@ -73,7 +88,7 @@ export function loadMap(mapConfig) {
     fillLight.intensity = mapConfig.lighting.fill.intensity;
   }
 
-  // 3. Rebuild Terrain
+  // 3. Rebuild Procedural Terrain
   disposeHierarchy(islandGroup);
 
   const tConf = mapConfig.terrain;
@@ -82,10 +97,21 @@ export function loadMap(mapConfig) {
 
   const posAttr = terrainGeo.attributes.position;
   const colors = [];
+  const vertexCol = new THREE.Color();
+  const hasCustomColor = typeof tConf.getColorAt === 'function';
+
   const sandCol = new THREE.Color(tConf.palette.sand);
   const lushCol = new THREE.Color(tConf.palette.lushGreen);
   const forestCol = new THREE.Color(tConf.palette.forestGreen);
-  const rockCols = tConf.palette.rocks.map(hex => new THREE.Color(hex));
+  const rockCols = tConf.palette.rocks
+    ? tConf.palette.rocks.map(hex => new THREE.Color(hex))
+    : [new THREE.Color(0x665544)];
+
+  // Fallback thresholds if a map does not provide a custom getColorAt
+  const isElevated = tConf.isElevated === true;
+  const tLow = isElevated ? 130.0 : 2.2;
+  const tMid = isElevated ? 170.0 : 16.0;
+  const tHigh = isElevated ? 230.0 : 60.0;
 
   for (let i = 0; i < posAttr.count; i++) {
     const x = posAttr.getX(i);
@@ -93,16 +119,19 @@ export function loadMap(mapConfig) {
     const h = tConf.getHeightAt(x, z);
     posAttr.setY(i, h);
 
-    const vertexCol = new THREE.Color();
-    if (h <= 1.5) {
-      vertexCol.copy(sandCol);
-    } else if (h <= 10.0) {
-      vertexCol.copy(sandCol).lerp(lushCol, (h - 1.5) / 8.5 * 0.6);
-    } else if (h <= 38.0) {
-      vertexCol.copy(lushCol).lerp(forestCol, (h - 10.0) / 28.0);
+    if (hasCustomColor) {
+      tConf.getColorAt(x, z, h, vertexCol);
     } else {
-      const pick = rockCols[Math.floor(Math.abs(Math.sin(x * 12.3 + z * 7.7)) * rockCols.length)];
-      vertexCol.copy(forestCol).lerp(pick, Math.min(1.0, (h - 38.0) / 30.0));
+      if (h <= tLow) {
+        vertexCol.copy(sandCol);
+      } else if (h <= tMid) {
+        vertexCol.copy(sandCol).lerp(lushCol, Math.min(1.0, (h - tLow) / (tMid - tLow)));
+      } else if (h <= tHigh) {
+        vertexCol.copy(lushCol).lerp(forestCol, Math.min(1.0, (h - tMid) / (tHigh - tMid)));
+      } else {
+        const pick = rockCols[Math.floor(Math.abs(Math.sin(x * 12.3 + z * 7.7)) * rockCols.length)];
+        vertexCol.copy(forestCol).lerp(pick, Math.min(1.0, (h - tHigh) / 30.0));
+      }
     }
     colors.push(vertexCol.r, vertexCol.g, vertexCol.b);
   }
@@ -114,10 +143,11 @@ export function loadMap(mapConfig) {
     vertexColors: true,
     flatShading: true
   }));
+  terrainMesh.name = 'terrainMesh';
   islandGroup.add(terrainMesh);
 
-  // 4. Props
-  if (mapConfig.props && mapConfig.props.count > 0) {
+  // 4. Procedural Props (Palm trees, Pines, etc.)
+  if (mapConfig.props && mapConfig.props.count > 0 && mapConfig.props.type !== 'none') {
     const isPine = mapConfig.props.type === 'pines';
     const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 5, 4);
     const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5a3d28, flatShading: true });
@@ -131,7 +161,8 @@ export function loadMap(mapConfig) {
       const pz = Math.sin(angle) * rad;
       const py = tConf.getHeightAt(px, pz);
 
-      if (py > 0.5) {
+      // Keep trees strictly on dry land and low-to-mid foliage regions
+      if (py >= 1.2 && py <= 55.0) {
         const treeGroup = new THREE.Group();
         treeGroup.position.set(px, py, pz);
 
@@ -147,24 +178,54 @@ export function loadMap(mapConfig) {
     }
   }
 
-  // 5. Ocean
+  // 5. Ocean Handling with Dynamic Water Level & Cleanup
   if (oceanMesh) {
     scene.remove(oceanMesh);
-    oceanMesh.geometry.dispose();
-    oceanMesh.material.dispose();
+    if (oceanMesh.geometry) oceanMesh.geometry.dispose();
+    if (oceanMesh.material) oceanMesh.material.dispose();
     oceanMesh = null;
   }
 
-  if (mapConfig.ocean) {
-    const oGeo = new THREE.PlaneGeometry(mapConfig.ocean.size, mapConfig.ocean.size, mapConfig.ocean.segments, mapConfig.ocean.segments);
+  for (let i = scene.children.length - 1; i >= 0; i--) {
+    const child = scene.children[i];
+    if (
+      child.name === 'oceanMesh' ||
+      (child.isMesh && child !== terrainMesh && child.geometry instanceof THREE.PlaneGeometry && child.geometry.parameters.width >= 1000)
+    ) {
+      scene.remove(child);
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    }
+  }
+
+  if (mapConfig.id === '05_dunes') {
+    currentWaterLevel = -500;
+  } else if (mapConfig.ocean !== null && mapConfig.ocean !== undefined) {
+    currentWaterLevel = mapConfig.ocean.level !== undefined ? mapConfig.ocean.level : 0;
+
+    const oGeo = new THREE.PlaneGeometry(
+      mapConfig.ocean.size,
+      mapConfig.ocean.size,
+      mapConfig.ocean.segments,
+      mapConfig.ocean.segments
+    );
     oGeo.rotateX(-Math.PI / 2);
-    oceanMesh = new THREE.Mesh(oGeo, new THREE.MeshLambertMaterial({
-      color: mapConfig.ocean.color,
-      transparent: true,
-      opacity: mapConfig.ocean.opacity,
-      flatShading: true
-    }));
+    oceanMesh = new THREE.Mesh(
+      oGeo,
+      new THREE.MeshLambertMaterial({
+        color: mapConfig.ocean.color,
+        transparent: true,
+        opacity: mapConfig.ocean.opacity,
+        flatShading: true
+      })
+    );
+    oceanMesh.name = 'oceanMesh';
+    oceanMesh.position.y = currentWaterLevel;
+    oceanMesh.visible = currentWaterLevel > -450;
+
     scene.add(oceanMesh);
+  } else {
+    currentWaterLevel = -500;
   }
 
   // 6. Checkpoint Vortex Rings
@@ -222,11 +283,16 @@ export function loadMap(mapConfig) {
     });
   });
 
-  // 7. Clouds
-  spawnClouds(mapConfig.clouds ? mapConfig.clouds.count : 30, mapConfig.terrain.getHeightAt);
+  // 7. Non-Clipping Procedural Clouds
+  const baseCloudAlt = mapConfig.clouds ? mapConfig.clouds.baseAlt : 175;
+  const cloudCount = mapConfig.clouds ? mapConfig.clouds.count : 30;
+  spawnClouds(cloudCount, mapConfig.terrain.getHeightAt, baseCloudAlt);
 }
 
-function spawnClouds(count, getHeightAt) {
+/**
+ * Spawns clustered low-poly clouds comfortably above terrain to avoid clipping.
+ */
+function spawnClouds(count, getHeightAt, baseAlt = 175) {
   disposeHierarchy(cloudGroup);
   const puffGeo = new THREE.DodecahedronGeometry(1, 1);
   const cloudMat = new THREE.MeshLambertMaterial({
@@ -239,13 +305,13 @@ function spawnClouds(count, getHeightAt) {
 
   for (let i = 0; i < count; i++) {
     const cluster = new THREE.Group();
-    const dist = 60 + Math.random() * 520;
+    const dist = 60 + Math.random() * 620;
     const ang = Math.random() * Math.PI * 2;
     const x = Math.cos(ang) * dist;
     const z = Math.sin(ang) * dist;
 
     const terrainH = getHeightAt ? getHeightAt(x, z) : 20;
-    const altitude = Math.max(terrainH + 35 + Math.random() * 45, 175 + Math.random() * 95);
+    const altitude = Math.max(terrainH + 35 + Math.random() * 45, baseAlt + Math.random() * 85);
     cluster.position.set(x, altitude, z);
 
     const puffs = 4 + Math.floor(Math.random() * 5);
@@ -270,8 +336,45 @@ function spawnClouds(count, getHeightAt) {
   }
 }
 
+/**
+ * Reads the current active water level.
+ */
+export function getWaterLevel() {
+  return currentWaterLevel;
+}
+
+/**
+ * Updates the water level dynamically in real-time.
+ */
+export function setWaterLevel(newLevel) {
+  currentWaterLevel = newLevel;
+
+  if (!oceanMesh && scene) {
+    const oGeo = new THREE.PlaneGeometry(4000, 4000, 35, 35);
+    oGeo.rotateX(-Math.PI / 2);
+    oceanMesh = new THREE.Mesh(
+      oGeo,
+      new THREE.MeshLambertMaterial({
+        color: 0x1da2b4,
+        transparent: true,
+        opacity: 0.88,
+        flatShading: true
+      })
+    );
+    oceanMesh.name = 'oceanMesh';
+    scene.add(oceanMesh);
+  }
+
+  if (oceanMesh) {
+    oceanMesh.position.y = newLevel;
+    oceanMesh.visible = newLevel > -450;
+  }
+}
+
+/**
+ * Per-frame animation updates for rings, dynamic waves, and drifting clouds.
+ */
 export function updateWorld(delta, t) {
-  // Rotate checkpoint spokes & pulse scale
   vortexRings.forEach((ring) => {
     ring.innerMesh.rotation.z = -t * 2.8;
     ring.spokesGroup.rotation.z = t * 2.2;
@@ -279,8 +382,7 @@ export function updateWorld(delta, t) {
     ring.group.scale.set(pulse, pulse, pulse);
   });
 
-  // Animate Ocean Waves
-  if (oceanMesh) {
+  if (oceanMesh && oceanMesh.geometry && oceanMesh.visible) {
     const oceanPos = oceanMesh.geometry.attributes.position;
     for (let i = 0; i < oceanPos.count; i++) {
       const ox = oceanPos.getX(i);
@@ -290,9 +392,8 @@ export function updateWorld(delta, t) {
     oceanPos.needsUpdate = true;
   }
 
-  // Drift Clouds
   cloudGroup.children.forEach((c) => {
     c.position.x += c.userData.driftSpeed * delta * 2.0;
-    if (c.position.x > 700) c.position.x = -700;
+    if (c.position.x > 800) c.position.x = -800;
   });
 }
