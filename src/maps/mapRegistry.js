@@ -1,6 +1,7 @@
 import { tropicalMap } from './01_tropical.js';
+import { canyonRiderMap } from './17_canyonrider.js';
 
-// Helper to quickly construct procedural world definitions for maps 02 through 16
+// Helper to quickly construct procedural world definitions
 function createWorldConfig(base) {
   return {
     ...base,
@@ -14,7 +15,7 @@ function createWorldConfig(base) {
       p2Race: { pos: [8, 185, 480], yaw: 0.0 },
       p2CoopIndex: 11
     },
-    waypoints: tropicalMap.waypoints, // Default circuit; maps override with their custom paths
+    waypoints: tropicalMap.waypoints,
     clouds: { count: 32, baseAlt: 180 },
     ocean: base.ocean || { size: 3000, segments: 30, color: 0x1da2b4, opacity: 0.88, hasWaves: true }
   };
@@ -25,7 +26,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '02_alpine',
-    number: '02/16',
+    number: '02/17',
     name: 'BIG MOUNTAIN',
     icon: '🏔️',
     biome: 'ALPINE',
@@ -58,7 +59,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '03_lakes',
-    number: '03/16',
+    number: '03/17',
     name: 'THOUSAND LAKES',
     icon: '🇫🇮',
     biome: 'NORDIC',
@@ -90,7 +91,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '04_forest',
-    number: '04/16',
+    number: '04/17',
     name: 'DEEP FOREST',
     icon: '🌲',
     biome: 'FOREST',
@@ -120,7 +121,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '05_dunes',
-    number: '05/16',
+    number: '05/17',
     name: 'DESERT DUNES',
     icon: '🏜️',
     biome: 'DESERT',
@@ -152,7 +153,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '06_snowdream',
-    number: '06/16',
+    number: '06/17',
     name: 'SNOW DREAM',
     icon: '❄️',
     biome: 'ARCTIC',
@@ -183,7 +184,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '07_tundra',
-    number: '07/16',
+    number: '07/17',
     name: 'FELLS OF LAPLAND',
     icon: '🏔️',
     biome: 'TUNDRA',
@@ -213,7 +214,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '08_archipelago',
-    number: '08/16',
+    number: '08/17',
     name: 'ARCHIPELAGO SEA',
     icon: '🌊',
     biome: 'COASTAL',
@@ -244,7 +245,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '09_volcano',
-    number: '09/16',
+    number: '09/17',
     name: 'VOLCANO ISLAND',
     icon: '🌋',
     biome: 'VOLCANIC',
@@ -267,7 +268,7 @@ export const MAPS_LIST = [
       getHeightAt(x, z) {
         const d = Math.hypot(x, z);
         let h = Math.exp(-d / 120) * 260;
-        if (d < 35) h -= 30; // Crater bowl
+        if (d < 35) h -= 30;
         return h - 5;
       },
       palette: { sand: 0x221815, lushGreen: 0x3a251f, forestGreen: 0x201a18, rocks: [0x1a1210, 0x38221c, 0xd44015] }
@@ -278,7 +279,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '10_lostisland',
-    number: '10/16',
+    number: '10/17',
     name: 'LOST ISLAND',
     icon: '🦖',
     biome: 'JURASSIC',
@@ -309,7 +310,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '11_aurora',
-    number: '11/16',
+    number: '11/17',
     name: 'NORTHERN LIGHTS',
     icon: '🌌',
     biome: 'AURORA',
@@ -339,7 +340,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '12_giantforest',
-    number: '12/16',
+    number: '12/17',
     name: 'GIANT FOREST',
     icon: '🌳',
     biome: 'TITAN',
@@ -369,7 +370,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '13_valley',
-    number: '13/16',
+    number: '13/17',
     name: 'THE GREAT VALLEY',
     icon: '🏞️',
     biome: 'VALLEY',
@@ -400,7 +401,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '14_canyon',
-    number: '14/16',
+    number: '14/17',
     name: 'ROCK CANYON',
     icon: '🪨',
     biome: 'CANYON',
@@ -431,7 +432,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '15_cloudsea',
-    number: '15/16',
+    number: '15/17',
     name: 'SEA OF CLOUDS',
     icon: '☁️',
     biome: 'STRATO',
@@ -462,7 +463,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '16_fairyland',
-    number: '16/16',
+    number: '16/17',
     name: 'FAIRY REALM',
     icon: '🏰',
     biome: 'FANTASY',
@@ -488,7 +489,10 @@ export const MAPS_LIST = [
       palette: { sand: 0xb59bc7, lushGreen: 0x3bb576, forestGreen: 0x228751, rocks: [0x68547a, 0x826e96] }
     },
     props: { type: 'palms', count: 60, minRadius: 100, maxRadius: 360 }
-  })
+  }),
+
+  // Map 17: Canyon Rider
+  canyonRiderMap
 ];
 
 export function getMapByIndex(idx) {
