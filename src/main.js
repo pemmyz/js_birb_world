@@ -208,14 +208,28 @@ UI.setupUIEventListeners({
   }
 });
 
-// Fullscreen toggle button
-document.getElementById('mobile-btn').addEventListener('click', () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(() => {});
-  } else {
-    document.exitFullscreen().catch(() => {});
-  }
-});
+// Persistent Top-Left Fullscreen Toggle Button (Mobile & Desktop)
+const fsBtn = document.getElementById('fullscreen-btn') || document.getElementById('mobile-btn');
+if (fsBtn) {
+  fsBtn.addEventListener('click', () => {
+    const doc = document;
+    const docEl = doc.documentElement;
+    if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
+      if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+    } else {
+      if (doc.exitFullscreen) doc.exitFullscreen().catch(() => {});
+      else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+    }
+  });
+
+  const updateFsLabel = () => {
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    fsBtn.innerHTML = isFs ? '✕ Exit Full' : '⛶ Fullscreen';
+  };
+  document.addEventListener('fullscreenchange', updateFsLabel);
+  document.addEventListener('webkitfullscreenchange', updateFsLabel);
+}
 
 // --- Checkpoint & Finish Handlers ---
 function onGateCleared(playerId) {

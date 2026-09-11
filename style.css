@@ -26,6 +26,43 @@ body, html {
 }
 
 /* =========================================
+   PERSISTENT TOP-LEFT FULLSCREEN BUTTON
+   ========================================= */
+.fullscreen-top-btn {
+  position: fixed;
+  top: 14px;
+  left: 16px;
+  z-index: 10000;
+  background: rgba(10, 24, 32, 0.92);
+  color: #fff6dd;
+  border: 1.5px solid #f1c40f;
+  font-size: 11px;
+  font-weight: 900;
+  font-family: inherit;
+  padding: 6px 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 10px rgba(241, 196, 15, 0.3);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: all 0.15s ease;
+}
+
+.fullscreen-top-btn:hover {
+  background: #f1c40f;
+  color: #111;
+  box-shadow: 0 0 16px rgba(241, 196, 15, 0.7);
+}
+
+.fullscreen-top-btn:active {
+  transform: scale(0.94);
+}
+
+/* =========================================
    STAGE 1: START & MODE SELECT MODAL
    ========================================= */
 #start-menu-modal {
@@ -42,6 +79,10 @@ body, html {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   transition: opacity 0.25s ease, visibility 0.25s;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 52px 14px 20px 14px;
 }
 
 body:not(.mode-menu) #start-menu-modal {
@@ -51,8 +92,12 @@ body:not(.mode-menu) #start-menu-modal {
 }
 
 .menu-card {
+  margin: auto;
   width: 92%;
   max-width: 520px;
+  max-height: calc(100vh - 65px);
+  overflow-y: auto;
+  touch-action: pan-y;
   background: rgba(16, 42, 54, 0.95);
   border: 3px solid #f1c40f;
   border-radius: 12px;
@@ -249,6 +294,10 @@ body:not(.mode-menu) #start-menu-modal {
   visibility: hidden;
   pointer-events: none;
   transition: opacity 0.25s ease, visibility 0.25s;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 52px 10px 16px 10px;
 }
 
 body.mode-map-select .carousel-modal {
@@ -258,6 +307,7 @@ body.mode-map-select .carousel-modal {
 }
 
 .carousel-wrapper {
+  margin: auto;
   width: 95%;
   max-width: 780px;
   display: flex;
@@ -555,7 +605,7 @@ body.mode-map-select .carousel-modal {
 #mid-controls-bar {
   position: fixed;
   top: 14px;
-  left: 16px;
+  left: 138px;
   z-index: 2200;
   display: flex;
   gap: 6px;
@@ -566,6 +616,11 @@ body.mode-map-select .carousel-modal {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
+}
+
+body.mode-menu #mid-controls-bar,
+body.mode-map-select #mid-controls-bar {
+  display: none;
 }
 
 .mid-bar-btn {
@@ -1044,4 +1099,135 @@ body.mobile-mode #mobile-controls { display: flex; }
   border: 2px solid #fffdec;
   box-shadow: 0 0 14px rgba(241, 196, 15, 0.85);
   transform: translate(0px, 0px);
+}
+
+/* =========================================
+   MOBILE RESPONSIVENESS FIXES
+   ========================================= */
+@media (max-width: 600px) {
+  .fullscreen-top-btn {
+    top: 10px;
+    left: 10px;
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  #mid-controls-bar {
+    top: 10px;
+    left: 108px;
+    padding: 4px 6px;
+    gap: 4px;
+  }
+
+  .mid-bar-btn {
+    padding: 4px 6px;
+    font-size: 9px;
+  }
+
+  #quick-actions-container {
+    top: 10px;
+    right: 10px;
+  }
+
+  .quick-actions-toggle {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  /* Start Menu Card on Mobile */
+  .menu-card {
+    padding: 16px 14px;
+    width: 96%;
+  }
+
+  .game-title {
+    font-size: 1.6rem;
+    letter-spacing: 1.5px;
+  }
+
+  .game-subtitle {
+    font-size: 0.7rem;
+    margin-bottom: 10px;
+  }
+
+  .controller-pairing-box {
+    padding: 8px 10px;
+    margin-bottom: 12px;
+  }
+
+  .pad-slot {
+    padding: 4px 6px;
+    font-size: 0.62rem;
+  }
+
+  .menu-options {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .menu-btn {
+    padding: 9px 12px;
+    gap: 10px;
+  }
+
+  .menu-btn .btn-icon {
+    font-size: 1.4rem;
+  }
+
+  .menu-btn .btn-main {
+    font-size: 0.88rem;
+  }
+
+  .menu-btn .btn-sub {
+    font-size: 0.62rem;
+  }
+
+  /* Map Carousel on Mobile */
+  .card-side {
+    display: none !important;
+  }
+
+  .card-main {
+    width: 100%;
+    max-width: 290px;
+    padding: 12px 14px;
+  }
+
+  .card-viewport {
+    height: 95px;
+  }
+
+  .carousel-arrow-btn {
+    width: 40px;
+    height: 60px;
+    font-size: 1.4rem;
+  }
+
+  .carousel-title {
+    font-size: 1.4rem;
+  }
+
+  .carousel-btn {
+    padding: 8px 14px;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-height: 520px) {
+  #start-menu-modal {
+    padding-top: 12px;
+    padding-left: 110px;
+  }
+
+  .controller-pairing-box {
+    display: none;
+  }
+
+  .menu-card {
+    padding: 10px 14px;
+  }
+
+  .game-title {
+    font-size: 1.3rem;
+  }
 }
