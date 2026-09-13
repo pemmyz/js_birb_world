@@ -68,6 +68,7 @@ function prevMap() {
 
 function launchFlight() {
   Audio.playConfirmBeep();
+  Audio.startWind(); // Start procedural wind rush and howling on launch
   currentGameState = 'flight';
   document.body.className = `mode-${selectedMode}`;
 
@@ -175,10 +176,12 @@ UI.setupUIEventListeners({
   onNextMap: nextMap,
   onConfirmMap: launchFlight,
   onBackToMenu: () => {
+    Audio.stopWind(); // Stop wind when leaving flight to main menu
     currentGameState = 'menu';
     UI.showModeMenu();
   },
   onOpenMapCarousel: () => {
+    Audio.stopWind(); // Stop wind when returning to map selector
     currentGameState = 'map-select';
     const labels = { single: '1 Player (Solo)', coop: '2P Reverse Co-Op', race: '2P Competition Race' };
     UI.showMapCarousel(labels[selectedMode]);
@@ -302,6 +305,7 @@ function animate() {
       if (nav.next) nextMap();
       if (nav.confirm) launchFlight();
       if (nav.back) {
+        Audio.stopWind();
         currentGameState = 'menu';
         UI.showModeMenu();
       }
@@ -357,6 +361,12 @@ function animate() {
   if (selectedMode === 'race' || selectedMode === 'coop') {
     spdP2 = updatePlayerPhysics(p2, gliderP2, steerP2, 'p2', delta, t, invertPitch, World.vortexRings, onGateCleared, onFinish);
   }
+
+  // Update procedural wind acoustics (modulates hum & howling based on flight speed)
+  const activeAirspeed = (selectedMode === 'race' || selectedMode === 'coop')
+    ? Math.max(spdP1, spdP2)
+    : spdP1;
+  Audio.updateWind(activeAirspeed, delta);
 
   // World Simulation (Clouds, Waves, Gate Rings)
   World.updateWorld(delta, t);
