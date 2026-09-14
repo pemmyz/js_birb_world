@@ -1,5 +1,5 @@
 // --- src/main.js ---
-// Main Game Engine Controller, Loop Orchestrator & Viewport Renderer
+// Main Game Engine Controller, Visibility State Handler & Flight Orchestrator
 
 import * as Audio from './audio.js';
 import * as Input from './input.js';
@@ -11,11 +11,14 @@ import { getMapByIndex, getTotalMaps } from './maps/mapRegistry.js';
 
 // --- Game Engine State ---
 let currentGameState = 'menu'; // 'menu' | 'map-select' | 'flight'
+let isGamePaused = false;
 let selectedMode = 'single';
 let currentMapIndex = 0;
 let invertPitch = false;
 let raceActive = false;
 let raceStartTime = 0;
+let racePausedAccumulated = 0;
+let pauseTimestamp = 0;
 let raceWinner = null;
 
 // Three.js Scene Setup
@@ -41,10 +44,43 @@ const gliderP2 = createPlayerGlider(
 const p1 = createPlayerState();
 const p2 = createPlayerState();
 
-// Initialize Inputs
+// Initialize Inputs & Sensors
 Input.initMouseInput(() => selectedMode);
 Input.VirtualJoystick.init({ maxRadius: 65, getGameMode: () => selectedMode });
 Input.initMobileControls();
+Input.initGyroscope();
+
+// --- PAUSE & RESUME LOGIC (Background / Inactive tab handler) ---
+function pauseGame() {
+  if (isGamePaused || currentGameState !== 'flight') return;
+  isGamePaused = true;
+  pauseTimestamp = performance.now();
+  Audio.pauseAudio();
+  UI.showPauseOverlay(true);
+}
+
+function resumeGame() {
+  if (!isGamePaused) return;
+  isGamePaused = false;
+  if (pauseTimestamp > 0) {
+    racePausedAccumulated += (performance.now() - pauseTimestamp);
+    pauseTimestamp = 0;
+  }
+  Audio.resumeAudio();
+  UI.showPauseOverlay(false);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    pauseGame();
+  } else {
+    // Keep overlay up so player can tap to resume cleanly
+  }
+});
+
+window.addEventListener('blur', () => {
+  if (currentGameState === 'flight') pauseGame();
+});
 
 // --- Carousel & Navigation Logic ---
 function refreshCarouselUI() {
@@ -68,15 +104,15 @@ function prevMap() {
 
 function launchFlight() {
   Audio.playConfirmBeep();
-  Audio.startWind(); // Start procedural wind rush and howling on launch
+  Audio.startWind();
   currentGameState = 'flight';
+  isGamePaused = false;
+  UI.showPauseOverlay(false);
   document.body.className = `mode-${selectedMode}`;
 
-  // 1. Build the selected world
   const activeMap = getMapByIndex(currentMapIndex);
   World.loadMap(activeMap);
 
-  // 2. Automatically set Quick Action water level to Drain All for 05_dunes
   if (activeMap.id === '05_dunes') {
     World.setWaterLevel(-500);
     UI.syncWaterLevelUI(-500);
@@ -90,7 +126,6 @@ function launchFlight() {
 function resetFlightMatch() {
   const activeMap = getMapByIndex(currentMapIndex);
 
-  // Position Player 1
   p1.pos.set(
     (selectedMode === 'race' || selectedMode === 'coop') ? -8 : 0,
     activeMap.spawns.p1.pos[1],
@@ -109,7 +144,6 @@ function resetFlightMatch() {
   p1.intro.active = true;
   p1.intro.elapsed = 0.0;
 
-  // Position Player 2
   if (selectedMode === 'coop') {
     const totalG = activeMap.waypoints.length;
     const lastGate = activeMap.waypoints[totalG - 1];
@@ -154,6 +188,8 @@ function resetFlightMatch() {
 
   raceActive = true;
   raceStartTime = performance.now();
+  racePausedAccumulated = 0;
+  pauseTimestamp = 0;
   raceWinner = null;
 
   document.getElementById('p1-winner-banner').classList.remove('show');
@@ -163,11 +199,11 @@ function resetFlightMatch() {
 
 // Setup Handlers with UI
 UI.setupUIEventListeners({
+  onResumeGame: resumeGame,
   onSelectMode: (mode) => {
     selectedMode = mode;
     currentGameState = 'map-select';
     Audio.playRingChime(1.1);
-
     const labels = { single: '1 Player (Solo)', coop: '2P Reverse Co-Op', race: '2P Competition Race' };
     UI.showMapCarousel(labels[mode]);
     refreshCarouselUI();
@@ -176,13 +212,17 @@ UI.setupUIEventListeners({
   onNextMap: nextMap,
   onConfirmMap: launchFlight,
   onBackToMenu: () => {
-    Audio.stopWind(); // Stop wind when leaving flight to main menu
+    Audio.stopWind();
     currentGameState = 'menu';
+    isGamePaused = false;
+    UI.showPauseOverlay(false);
     UI.showModeMenu();
   },
   onOpenMapCarousel: () => {
-    Audio.stopWind(); // Stop wind when returning to map selector
+    Audio.stopWind();
     currentGameState = 'map-select';
+    isGamePaused = false;
+    UI.showPauseOverlay(false);
     const labels = { single: '1 Player (Solo)', coop: '2P Reverse Co-Op', race: '2P Competition Race' };
     UI.showMapCarousel(labels[selectedMode]);
     refreshCarouselUI();
@@ -208,11 +248,46 @@ UI.setupUIEventListeners({
           : (activeMap.ocean ? 0 : -500));
     World.setWaterLevel(defaultLevel);
     UI.syncWaterLevelUI(defaultLevel);
+  },
+  onVolumeChange: (vol) => {
+    Audio.setMasterVolume(vol);
+  },
+  onForceReloadMaps: () => {
+    // Force reload active map and refresh scene geometries
+    const activeMap = getMapByIndex(currentMapIndex);
+    World.loadMap(activeMap);
+    UI.syncWaterLevelUI(World.getWaterLevel());
+    Audio.playConfirmBeep();
+    resetFlightMatch();
+  },
+  onToggleGyro: async () => {
+    const granted = await Input.requestGyroPermission();
+    if (granted) {
+      Input.gyroState.enabled = !Input.gyroState.enabled;
+      Input.VirtualJoystick.setAnchorCorner(Input.gyroState.enabled);
+      UI.updateGyroUI(Input.gyroState.enabled);
+    }
+  },
+  onCalibrateGyro: async () => {
+    const granted = await Input.requestGyroPermission();
+    if (!granted) return;
+    UI.showGyroCalibration(true);
+    Input.calibrateGyroscope(
+      (progress) => UI.updateGyroCalibrationProgress(progress),
+      () => {
+        setTimeout(() => {
+          UI.showGyroCalibration(false);
+          Input.VirtualJoystick.setAnchorCorner(true);
+          UI.updateGyroUI(true);
+          Audio.playRingChime(1.4);
+        }, 300);
+      }
+    );
   }
 });
 
-// Persistent Top-Left Fullscreen Toggle Button (Mobile & Desktop)
-const fsBtn = document.getElementById('fullscreen-btn') || document.getElementById('mobile-btn');
+// Fullscreen button
+const fsBtn = document.getElementById('fullscreen-btn');
 if (fsBtn) {
   fsBtn.addEventListener('click', () => {
     const doc = document;
@@ -234,19 +309,16 @@ if (fsBtn) {
   document.addEventListener('webkitfullscreenchange', updateFsLabel);
 }
 
-// --- Checkpoint & Finish Handlers ---
+// Checkpoint & Finish Handlers
 function onGateCleared(playerId) {
   UI.triggerRingPopup(playerId);
 }
 
 function onFinish(playerId) {
   const activeMap = getMapByIndex(currentMapIndex);
-  playerFinishHandler(playerId, activeMap);
-}
-
-function playerFinishHandler(playerId, activeMap) {
   const p = playerId === 'p1' ? p1 : p2;
-  p.finishTime = (performance.now() - raceStartTime) / 1000;
+  const currentDuration = ((performance.now() - raceStartTime) - racePausedAccumulated) / 1000;
+  p.finishTime = currentDuration;
 
   if (selectedMode === 'race') {
     if (!raceWinner) {
@@ -257,8 +329,8 @@ function playerFinishHandler(playerId, activeMap) {
         UI.showFinishModal(
           `${playerId === 'p1' ? 'PLAYER 1 (EMERALD)' : 'PLAYER 2 (SAPPHIRE)'} WINS!`,
           `Fastest run through ${activeMap.name}!`,
-          formatTime(p1.finishTime || (performance.now() - raceStartTime) / 1000),
-          formatTime(p2.finishTime || (performance.now() - raceStartTime) / 1000)
+          formatTime(p1.finishTime || currentDuration),
+          formatTime(p2.finishTime || currentDuration)
         );
       }, 1200);
     }
@@ -268,8 +340,8 @@ function playerFinishHandler(playerId, activeMap) {
       UI.showFinishModal(
         'CO-OP MISSION COMPLETE! 🎉',
         `Both pilots converged and conquered ${activeMap.name}!`,
-        formatTime(p1.finishTime || (performance.now() - raceStartTime) / 1000),
-        formatTime(p2.finishTime || (performance.now() - raceStartTime) / 1000)
+        formatTime(p1.finishTime || currentDuration),
+        formatTime(p2.finishTime || currentDuration)
       );
     }, 1200);
   } else {
@@ -285,7 +357,7 @@ function playerFinishHandler(playerId, activeMap) {
   }
 }
 
-// --- Main Animation Loop ---
+// Main Animation Loop
 const clock = new THREE.Clock();
 
 function animate() {
@@ -294,8 +366,9 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const t = clock.getElapsedTime();
 
-  // Poll Gamepads for ABXY pairing
+  // Poll Gamepads for ABXY pairing & controller tester
   const gpInputs = Input.pollGamepads(() => UI.updateControllerUI());
+  UI.renderControllerTestModal();
 
   // Carousel Gamepad / Keyboard Navigation
   if (currentGameState === 'map-select') {
@@ -310,12 +383,12 @@ function animate() {
         UI.showModeMenu();
       }
     }
-    return; // Stop flight updates when browsing maps
+    return;
   }
 
-  if (currentGameState !== 'flight') return;
+  if (currentGameState !== 'flight' || isGamePaused) return;
 
-  // Steering Input Hierarchy (Pad > Touch Stick > Keys > Mouse)
+  // Steering Input Hierarchy (Pad > Gyro > Touch Stick > Keys > Mouse)
   const steerP1 = { x: 0, y: 0 };
   const hasArrowKeys = Input.keys.ArrowLeft || Input.keys.ArrowRight || Input.keys.ArrowUp || Input.keys.ArrowDown;
   const hasSoloWasd = (selectedMode === 'single') && (Input.keys.a || Input.keys.A || Input.keys.d || Input.keys.D || Input.keys.w || Input.keys.W || Input.keys.s || Input.keys.S);
@@ -327,6 +400,9 @@ function animate() {
     const joy = Input.VirtualJoystick.getVector();
     steerP1.x = joy.x;
     steerP1.y = -joy.y * 1.35;
+  } else if (Input.gyroState.enabled) {
+    steerP1.x = Input.gyroState.steer.x;
+    steerP1.y = Input.gyroState.steer.y;
   } else if (hasArrowKeys) {
     if (Input.keys.ArrowLeft) steerP1.x -= 1.0;
     if (Input.keys.ArrowRight) steerP1.x += 1.0;
@@ -362,23 +438,20 @@ function animate() {
     spdP2 = updatePlayerPhysics(p2, gliderP2, steerP2, 'p2', delta, t, invertPitch, World.vortexRings, onGateCleared, onFinish);
   }
 
-  // Update procedural wind acoustics (modulates hum & howling based on flight speed)
   const activeAirspeed = (selectedMode === 'race' || selectedMode === 'coop')
     ? Math.max(spdP1, spdP2)
     : spdP1;
   Audio.updateWind(activeAirspeed, delta);
 
-  // World Simulation (Clouds, Waves, Gate Rings)
   World.updateWorld(delta, t);
 
-  // Camera Updates
   updatePlayerCamera(World.camera1, p1, delta);
   if (selectedMode === 'race' || selectedMode === 'coop') {
     updatePlayerCamera(World.camera2, p2, delta);
   }
 
   // Telemetry Readouts
-  const elapsed = (raceStartTime > 0) ? (performance.now() - raceStartTime) / 1000 : 0;
+  const elapsed = (raceStartTime > 0) ? ((performance.now() - raceStartTime) - racePausedAccumulated) / 1000 : 0;
   const timeP1Formatted = formatTime(p1.finishTime !== null ? p1.finishTime : elapsed);
   const timeP2Formatted = formatTime(p2.finishTime !== null ? p2.finishTime : elapsed);
 
@@ -389,7 +462,7 @@ function animate() {
 
   UI.updateTelemetry(p1, p2, spdP1, spdP2, totalGates, selectedMode, timeP1Formatted, timeP2Formatted, distP1, distP2);
 
-  // Split-Screen or Fullscreen Rendering
+  // Viewport Rendering
   const width = window.innerWidth;
   const height = window.innerHeight;
 
@@ -397,21 +470,18 @@ function animate() {
     const halfWidth = Math.floor(width * 0.5);
     World.renderer.setScissorTest(true);
 
-    // Left Viewport (Player 1)
     World.renderer.setViewport(0, 0, halfWidth, height);
     World.renderer.setScissor(0, 0, halfWidth, height);
     World.camera1.aspect = halfWidth / height;
     World.camera1.updateProjectionMatrix();
     World.renderer.render(World.scene, World.camera1);
 
-    // Right Viewport (Player 2)
     World.renderer.setViewport(halfWidth, 0, width - halfWidth, height);
     World.renderer.setScissor(halfWidth, 0, width - halfWidth, height);
     World.camera2.aspect = (width - halfWidth) / height;
     World.camera2.updateProjectionMatrix();
     World.renderer.render(World.scene, World.camera2);
   } else {
-    // Single Pilot Fullscreen
     World.renderer.setScissorTest(false);
     World.renderer.setViewport(0, 0, width, height);
     World.camera1.aspect = width / height;
@@ -420,7 +490,6 @@ function animate() {
   }
 }
 
-// Window Resize Handling
 window.addEventListener('resize', () => {
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -438,6 +507,5 @@ window.addEventListener('resize', () => {
   }
 });
 
-// Launch on Menu
 UI.showModeMenu();
 animate();

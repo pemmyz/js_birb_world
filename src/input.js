@@ -1,3 +1,6 @@
+// --- src/input.js ---
+// Multi-input Tracker: Gamepad, Gyroscope + Calibration, Touch Joystick, Keyboard & Mouse
+
 import { playRingChime } from './audio.js';
 
 export let p1GamepadIndex = null;
@@ -25,7 +28,7 @@ export const mouseP1 = { x: 0, y: 0 };
 
 export function initMouseInput(getGameMode) {
   window.addEventListener('mousemove', (e) => {
-    if (p1GamepadIndex === null && !VirtualJoystick.isActive()) {
+    if (p1GamepadIndex === null && !VirtualJoystick.isActive() && !gyroState.enabled) {
       const mode = getGameMode();
       const maxX = (mode === 'race' || mode === 'coop') ? window.innerWidth * 0.5 : window.innerWidth;
       if (e.clientX <= maxX) {
@@ -37,7 +40,95 @@ export function initMouseInput(getGameMode) {
   });
 }
 
-// Floating Virtual Joystick
+// --- GYROSCOPE & SENSOR CALIBRATION ENGINE ---
+export const gyroState = {
+  supported: false,
+  enabled: false,
+  calibrating: false,
+  neutralPitch: 40.0, // default comfortable hand-held tilt in degrees
+  neutralRoll: 0.0,
+  currentPitch: 40.0,
+  currentRoll: 0.0,
+  steer: { x: 0, y: 0 }
+};
+
+export async function requestGyroPermission() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const response = await DeviceOrientationEvent.requestPermission();
+      return response === 'granted';
+    } catch (e) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function initGyroscope() {
+  if (!window.DeviceOrientationEvent) return;
+
+  window.addEventListener('deviceorientation', (e) => {
+    gyroState.supported = true;
+    if (e.beta === null || e.gamma === null) return;
+
+    gyroState.currentPitch = e.beta;
+    gyroState.currentRoll = e.gamma;
+
+    if (!gyroState.enabled) return;
+
+    // Calculate delta relative to calibrated neutral holding angle
+    const deltaRoll = gyroState.currentRoll - gyroState.neutralRoll;
+    const deltaPitch = gyroState.currentPitch - gyroState.neutralPitch;
+
+    // Sensitivity normalization: +/- 25 degrees tilt maps to full [-1, 1] range
+    const SENS_ROLL = 24.0;
+    const SENS_PITCH = 24.0;
+
+    let sx = THREE.MathUtils.clamp(deltaRoll / SENS_ROLL, -1.0, 1.0);
+    let sy = THREE.MathUtils.clamp(-deltaPitch / SENS_PITCH, -1.0, 1.0);
+
+    // Apply tiny deadzone to eliminate hand tremor
+    if (Math.abs(sx) < 0.04) sx = 0;
+    if (Math.abs(sy) < 0.04) sy = 0;
+
+    gyroState.steer.x = sx;
+    gyroState.steer.y = sy;
+
+    // Sync gyro to physical virtual joystick thumb
+    VirtualJoystick.setThumbFromExternal(sx, -sy);
+  });
+}
+
+export function calibrateGyroscope(onProgress, onComplete) {
+  gyroState.calibrating = true;
+  const samples = [];
+  const startTime = performance.now();
+  const DURATION = 1400; // 1.4 seconds of still calibration
+
+  function sampleStep() {
+    const elapsed = performance.now() - startTime;
+    const progress = Math.min(1.0, elapsed / DURATION);
+    samples.push({ pitch: gyroState.currentPitch, roll: gyroState.currentRoll });
+
+    if (onProgress) onProgress(progress);
+
+    if (progress < 1.0) {
+      requestAnimationFrame(sampleStep);
+    } else {
+      const avgPitch = samples.reduce((acc, s) => acc + s.pitch, 0) / samples.length;
+      const avgRoll = samples.reduce((acc, s) => acc + s.roll, 0) / samples.length;
+      gyroState.neutralPitch = avgPitch;
+      gyroState.neutralRoll = avgRoll;
+      gyroState.calibrating = false;
+      gyroState.enabled = true;
+      if (onComplete) onComplete({ pitch: avgPitch, roll: avgRoll });
+    }
+  }
+
+  requestAnimationFrame(sampleStep);
+}
+
+// --- VIRTUAL JOYSTICK ---
 export const VirtualJoystick = (function () {
   let activePointerId = null;
   let startX = 0;
@@ -60,6 +151,24 @@ export const VirtualJoystick = (function () {
     window.addEventListener('pointercancel', onPointerUp);
   }
 
+  function setAnchorCorner(anchored) {
+    if (!joystickEl) return;
+    if (anchored) {
+      joystickEl.classList.add('gyro-anchored', 'active');
+    } else {
+      joystickEl.classList.remove('gyro-anchored');
+      if (activePointerId === null) joystickEl.classList.remove('active');
+    }
+  }
+
+  function setThumbFromExternal(normX, normY) {
+    if (activePointerId !== null) return; // User touching joystick overrides gyro
+    if (!thumbEl) return;
+    const px = normX * maxRadius * 0.75;
+    const py = normY * maxRadius * 0.75;
+    thumbEl.style.transform = `translate(${px}px, ${py}px)`;
+  }
+
   function onPointerDown(e) {
     if (activePointerId !== null) return;
     if (e.target && e.target.closest('button, select, input, textarea, a, .no-joystick')) return;
@@ -71,7 +180,7 @@ export const VirtualJoystick = (function () {
     startX = e.clientX;
     startY = e.clientY;
 
-    if (joystickEl) {
+    if (joystickEl && !joystickEl.classList.contains('gyro-anchored')) {
       joystickEl.style.left = `${startX}px`;
       joystickEl.style.top = `${startY}px`;
       joystickEl.classList.add('active');
@@ -110,18 +219,22 @@ export const VirtualJoystick = (function () {
     activePointerId = null;
     vector.x = 0;
     vector.y = 0;
-    if (joystickEl) joystickEl.classList.remove('active');
+    if (joystickEl && !joystickEl.classList.contains('gyro-anchored')) {
+      joystickEl.classList.remove('active');
+    }
     if (thumbEl) thumbEl.style.transform = 'translate(0px, 0px)';
   }
 
   return {
     init,
     getVector: () => vector,
-    isActive: () => activePointerId !== null
+    isActive: () => activePointerId !== null,
+    setAnchorCorner,
+    setThumbFromExternal
   };
 })();
 
-// Mobile On-Screen D-Pad & Actions
+// Mobile On-Screen D-Pad
 export function initMobileControls() {
   const bindTouch = (elId, key) => {
     const el = document.getElementById(elId);
@@ -139,12 +252,11 @@ export function initMobileControls() {
   bindTouch('mobile-down', 'ArrowDown');
 }
 
-// Gamepad polling, button mapping & deadzones
+// Gamepad polling and button pairing
 export function pollGamepads(onPairCallback) {
   if (!navigator.getGamepads) return { p1: { x: 0, y: 0, active: false }, p2: { x: 0, y: 0, active: false } };
   const gamepads = navigator.getGamepads();
 
-  // Scan for ABXY buttons to pair controllers
   for (let i = 0; i < gamepads.length; i++) {
     const gp = gamepads[i];
     if (!gp || !gp.connected) continue;
@@ -176,7 +288,6 @@ export function pollGamepads(onPairCallback) {
     if (Math.abs(lx) < DEADZONE) lx = 0;
     if (Math.abs(ly) < DEADZONE) ly = 0;
 
-    // D-Pad Fallback
     if (gp.buttons[14]?.pressed) lx = -1.0;
     if (gp.buttons[15]?.pressed) lx = 1.0;
     if (gp.buttons[12]?.pressed) ly = -1.0;
@@ -191,7 +302,6 @@ export function pollGamepads(onPairCallback) {
   };
 }
 
-// Carousel navigation helper with cooldown debounce
 let carouselCooldown = 0;
 export function pollCarouselInput(delta) {
   if (carouselCooldown > 0) {
@@ -201,13 +311,11 @@ export function pollCarouselInput(delta) {
 
   const result = { prev: false, next: false, confirm: false, back: false };
 
-  // Keyboard navigation
   if (keys.ArrowLeft || keys.a || keys.A) result.prev = true;
   if (keys.ArrowRight || keys.d || keys.D) result.next = true;
   if (keys.Enter || keys[' ']) result.confirm = true;
   if (keys.Escape) result.back = true;
 
-  // Gamepad navigation (checked on P1 pad or any pad)
   if (navigator.getGamepads) {
     const gamepads = navigator.getGamepads();
     const gp = (p1GamepadIndex !== null) ? gamepads[p1GamepadIndex] : gamepads[0];
@@ -215,13 +323,13 @@ export function pollCarouselInput(delta) {
       const lx = gp.axes[0] || 0;
       if (lx < -0.45 || gp.buttons[14]?.pressed) result.prev = true;
       if (lx > 0.45 || gp.buttons[15]?.pressed) result.next = true;
-      if (gp.buttons[0]?.pressed) result.confirm = true; // A button
-      if (gp.buttons[1]?.pressed) result.back = true;    // B button
+      if (gp.buttons[0]?.pressed) result.confirm = true;
+      if (gp.buttons[1]?.pressed) result.back = true;
     }
   }
 
   if (result.prev || result.next || result.confirm || result.back) {
-    carouselCooldown = 0.22; // 220ms repeat debounce
+    carouselCooldown = 0.22;
     return result;
   }
   return null;
