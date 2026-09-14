@@ -12,6 +12,7 @@ import { getMapByIndex, getTotalMaps } from './maps/mapRegistry.js';
 // --- Game Engine State ---
 let currentGameState = 'menu'; // 'menu' | 'map-select' | 'flight'
 let isGamePaused = false;
+let autoPauseEnabled = true;
 let selectedMode = 'single';
 let currentMapIndex = 0;
 let invertPitch = false;
@@ -52,7 +53,7 @@ Input.initGyroscope();
 
 // --- PAUSE & RESUME LOGIC (Background / Inactive tab handler) ---
 function pauseGame() {
-  if (isGamePaused || currentGameState !== 'flight') return;
+  if (!autoPauseEnabled || isGamePaused || currentGameState !== 'flight') return;
   isGamePaused = true;
   pauseTimestamp = performance.now();
   Audio.pauseAudio();
@@ -72,14 +73,14 @@ function resumeGame() {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    pauseGame();
-  } else {
-    // Keep overlay up so player can tap to resume cleanly
+    if (autoPauseEnabled) pauseGame();
   }
 });
 
 window.addEventListener('blur', () => {
-  if (currentGameState === 'flight') pauseGame();
+  if (currentGameState === 'flight' && autoPauseEnabled) {
+    pauseGame();
+  }
 });
 
 // --- Carousel & Navigation Logic ---
@@ -253,12 +254,18 @@ UI.setupUIEventListeners({
     Audio.setMasterVolume(vol);
   },
   onForceReloadMaps: () => {
-    // Force reload active map and refresh scene geometries
     const activeMap = getMapByIndex(currentMapIndex);
     World.loadMap(activeMap);
     UI.syncWaterLevelUI(World.getWaterLevel());
     Audio.playConfirmBeep();
     resetFlightMatch();
+  },
+  onToggleAutoPause: () => {
+    autoPauseEnabled = !autoPauseEnabled;
+    UI.updateAutoPauseUI(autoPauseEnabled);
+    if (!autoPauseEnabled && isGamePaused) {
+      resumeGame();
+    }
   },
   onToggleGyro: async () => {
     const granted = await Input.requestGyroPermission();

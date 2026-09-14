@@ -1,5 +1,5 @@
 // --- src/ui.js ---
-// UI Management: Menus, Carousel, Controller Test Lab, Gyro Calibration & Volume
+// UI Management: Menus, Carousel, Controller Test Lab, Gyro Calibration, Auto-Pause & Volume
 
 import { playCarouselTick } from './audio.js';
 import { p1GamepadIndex, p2GamepadIndex } from './input.js';
@@ -84,6 +84,14 @@ export function updateGyroUI(enabled) {
   if (qaGyroBtn) {
     qaGyroBtn.innerText = enabled ? '📱 Gyro: ON' : '📱 Gyro: OFF';
     qaGyroBtn.style.borderColor = enabled ? '#55efc4' : '';
+  }
+}
+
+export function updateAutoPauseUI(enabled) {
+  const btn = document.getElementById('qa-btn-autopause');
+  if (btn) {
+    btn.innerText = enabled ? '⏸️ Auto-Pause: ON' : '⏸️ Auto-Pause: OFF';
+    btn.classList.toggle('active', enabled);
   }
 }
 
@@ -323,6 +331,10 @@ export function setupUIEventListeners(handlers) {
   document.getElementById('qa-btn-invert')?.addEventListener('click', () => handlers.onToggleInvert());
   document.getElementById('qa-btn-reset')?.addEventListener('click', () => handlers.onResetMatch());
   document.getElementById('qa-btn-reload-maps')?.addEventListener('click', () => handlers.onForceReloadMaps());
+
+  document.getElementById('qa-btn-autopause')?.addEventListener('click', () => {
+    if (handlers.onToggleAutoPause) handlers.onToggleAutoPause();
+  });
 
   document.getElementById('qa-btn-gyro-toggle')?.addEventListener('click', () => handlers.onToggleGyro());
   document.getElementById('qa-btn-calibrate-gyro')?.addEventListener('click', () => handlers.onCalibrateGyro());
