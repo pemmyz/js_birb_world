@@ -22,6 +22,11 @@ let racePausedAccumulated = 0;
 let pauseTimestamp = 0;
 let raceWinner = null;
 
+// Real-time FPS Calculation
+let fpsFrames = 0;
+let fpsLastTime = performance.now();
+let currentFps = 60;
+
 // Three.js Scene Setup
 const container = document.getElementById('canvas-container');
 World.initWorld(container);
@@ -373,6 +378,15 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   const t = clock.getElapsedTime();
 
+  // Smooth FPS sampling (calculated every 250ms)
+  fpsFrames++;
+  const now = performance.now();
+  if (now - fpsLastTime >= 250) {
+    currentFps = Math.round((fpsFrames * 1000) / (now - fpsLastTime));
+    fpsFrames = 0;
+    fpsLastTime = now;
+  }
+
   // Poll Gamepads for ABXY pairing & controller tester
   const gpInputs = Input.pollGamepads(() => UI.updateControllerUI());
   UI.renderControllerTestModal();
@@ -467,7 +481,7 @@ function animate() {
   const distP1 = World.vortexRings[p1.currentRingIndex] ? Math.round(p1.pos.distanceTo(World.vortexRings[p1.currentRingIndex].pos)) : 0;
   const distP2 = World.vortexRings[p2.currentRingIndex] ? Math.round(p2.pos.distanceTo(World.vortexRings[p2.currentRingIndex].pos)) : 0;
 
-  UI.updateTelemetry(p1, p2, spdP1, spdP2, totalGates, selectedMode, timeP1Formatted, timeP2Formatted, distP1, distP2);
+  UI.updateTelemetry(p1, p2, spdP1, spdP2, totalGates, selectedMode, timeP1Formatted, timeP2Formatted, distP1, distP2, currentFps);
 
   // Viewport Rendering
   const width = window.innerWidth;

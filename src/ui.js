@@ -44,6 +44,7 @@ const p1ScoreEl = document.getElementById('p1-score-val');
 const p1DistEl = document.getElementById('p1-dist-val');
 const p1AltEl = document.getElementById('p1-alt-val');
 const p1SpdEl = document.getElementById('p1-spd-val');
+const p1FpsEl = document.getElementById('p1-fps-val');
 
 const p2TimeEl = document.getElementById('p2-time-val');
 const p2RingEl = document.getElementById('p2-ring-val');
@@ -51,6 +52,7 @@ const p2ScoreEl = document.getElementById('p2-score-val');
 const p2DistEl = document.getElementById('p2-dist-val');
 const p2AltEl = document.getElementById('p2-alt-val');
 const p2SpdEl = document.getElementById('p2-spd-val');
+const p2FpsEl = document.getElementById('p2-fps-val');
 
 let padTestSelectedSlot = 'p1'; // 'p1' or 'p2'
 
@@ -226,13 +228,14 @@ export function showFinishModal(title, subtitle, p1Time, p2Time) {
   modal.classList.add('active');
 }
 
-export function updateTelemetry(p1, p2, spdP1, spdP2, totalGates, gameMode, timeP1, timeP2, distP1, distP2) {
+export function updateTelemetry(p1, p2, spdP1, spdP2, totalGates, gameMode, timeP1, timeP2, distP1, distP2, fps = 60) {
   if (p1TimeEl) p1TimeEl.innerText = timeP1;
   if (p1RingEl) p1RingEl.innerText = `Gate #${p1.currentRingIndex + 1} (${p1.gatesCleared}/${totalGates})`;
   if (p1ScoreEl) p1ScoreEl.innerText = `${p1.score}`;
   if (p1DistEl) p1DistEl.innerText = `${distP1}m`;
   if (p1AltEl) p1AltEl.innerText = `ALT: ${Math.round(p1.pos.y)}m`;
   if (p1SpdEl) p1SpdEl.innerText = `SPD: ${Math.round(spdP1 * 1.8)} km/h`;
+  if (p1FpsEl) p1FpsEl.innerText = `${fps}`;
 
   if (gameMode === 'race' || gameMode === 'coop') {
     if (p2TimeEl) p2TimeEl.innerText = timeP2;
@@ -241,6 +244,7 @@ export function updateTelemetry(p1, p2, spdP1, spdP2, totalGates, gameMode, time
     if (p2DistEl) p2DistEl.innerText = `${distP2}m`;
     if (p2AltEl) p2AltEl.innerText = `ALT: ${Math.round(p2.pos.y)}m`;
     if (p2SpdEl) p2SpdEl.innerText = `SPD: ${Math.round(spdP2 * 1.8)} km/h`;
+    if (p2FpsEl) p2FpsEl.innerText = `${fps}`;
   }
 }
 
