@@ -6,15 +6,11 @@
 
 [![Three.js](https://img.shields.io/badge/Three.js-r128-black?style=flat&logo=three.js)](https://threejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Birb World Version](https://img.shields.io/badge/Birb%20World-v2.4.96%20Retro%20Tour-00cec9)](https://pemmyz.github.io/js_birb_parachute_island/)
+[![Birb World Version](https://img.shields.io/badge/Birb%20World-v2.4.96%20Retro%20Tour-00cec9)](https://pemmyz.github.io/js_birb_world/)
 
 A browser-based 3D arcade paragliding speedway and exploration flight engine inspired by the visual style, physics, and aesthetics of late-90s PlayStation 1 classics.
 
 Take flight as a low-poly tropical bird piloting an aerodynamically responsive paraglider canopy across **17 diverse procedural biomes**, navigate high-speed vortex checkpoint gates, compete in split-screen racing, or steer using real-world mobile device gyroscope tilt!
-
-### 🎮 Play it now
-
-**https://pemmyz.github.io/js_birb_parachute_island/**
 
 ---
 
