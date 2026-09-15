@@ -115,7 +115,6 @@ function launchFlight() {
   isGamePaused = false;
   UI.showPauseOverlay(false);
   document.body.className = `mode-${selectedMode}`;
-  Input.VirtualJoystick.setMode(selectedMode);
 
   const activeMap = getMapByIndex(currentMapIndex);
   World.loadMap(activeMap);
@@ -412,7 +411,12 @@ function animate() {
 
   if (currentGameState !== 'flight' || isGamePaused) return;
 
-  // Mirror analog stick movement directly onto virtual joysticks
+  // Sync virtual joystick docking state based on whether gamepads are paired
+  const p1HasPad = Input.p1GamepadIndex !== null;
+  const p2HasPad = Input.p2GamepadIndex !== null || (selectedMode === 'coop' && p1HasPad);
+  Input.VirtualJoystick.syncDocking(p1HasPad, p2HasPad, selectedMode);
+
+  // Mirror analog stick movement directly onto virtual joysticks when pad is paired
   if (gpInputs.p1.active) {
     Input.VirtualJoystick.setThumb('p1', gpInputs.p1.x, gpInputs.p1.y);
   } else if (!Input.VirtualJoystick.isActive('p1') && !Input.gyroState.enabled) {

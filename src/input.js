@@ -138,6 +138,11 @@ export const VirtualJoystick = (function () {
   let maxRadius = 55;
   let modeGetter = () => 'single';
 
+  const dockedState = {
+    p1: false,
+    p2: false
+  };
+
   const pointers = {
     p1: { id: null, startX: 0, startY: 0, vector: { x: 0, y: 0 } },
     p2: { id: null, startX: 0, startY: 0, vector: { x: 0, y: 0 } }
@@ -159,35 +164,66 @@ export const VirtualJoystick = (function () {
     window.addEventListener('pointercancel', onPointerUp);
   }
 
-  function setMode(mode) {
-    if (mode === 'single') {
-      if (p1JoyEl) {
-        p1JoyEl.classList.add('anchored-left', 'active');
+  function syncDocking(p1HasPad, p2HasPad, mode) {
+    dockedState.p1 = !!p1HasPad || gyroState.enabled;
+    dockedState.p2 = !!p2HasPad;
+
+    // P1 Joystick Docking
+    if (p1JoyEl) {
+      if (dockedState.p1) {
+        if (!p1JoyEl.classList.contains('anchored-left')) {
+          p1JoyEl.style.left = '';
+          p1JoyEl.style.top = '';
+          p1JoyEl.style.right = '';
+          p1JoyEl.style.bottom = '';
+          p1JoyEl.classList.add('anchored-left', 'active');
+        }
+        p1JoyEl.style.display = 'block';
+      } else {
+        if (p1JoyEl.classList.contains('anchored-left')) {
+          p1JoyEl.classList.remove('anchored-left');
+          if (pointers.p1.id === null) {
+            p1JoyEl.classList.remove('active');
+          }
+        }
         p1JoyEl.style.display = 'block';
       }
-      if (p2JoyEl) {
+    }
+
+    // P2 Joystick Docking
+    if (p2JoyEl) {
+      if (mode === 'single') {
         p2JoyEl.classList.remove('anchored-right', 'active');
         p2JoyEl.style.display = 'none';
+        return;
       }
-    } else {
-      if (p1JoyEl) {
-        p1JoyEl.classList.add('anchored-left', 'active');
-        p1JoyEl.style.display = 'block';
-      }
-      if (p2JoyEl) {
-        p2JoyEl.classList.add('anchored-right', 'active');
-        p2JoyEl.style.display = 'block';
+      p2JoyEl.style.display = 'block';
+      if (dockedState.p2) {
+        if (!p2JoyEl.classList.contains('anchored-right')) {
+          p2JoyEl.style.left = '';
+          p2JoyEl.style.top = '';
+          p2JoyEl.style.right = '';
+          p2JoyEl.style.bottom = '';
+          p2JoyEl.classList.add('anchored-right', 'active');
+        }
+      } else {
+        if (p2JoyEl.classList.contains('anchored-right')) {
+          p2JoyEl.classList.remove('anchored-right');
+          if (pointers.p2.id === null) {
+            p2JoyEl.classList.remove('active');
+          }
+        }
       }
     }
   }
 
   function hideAll() {
     if (p1JoyEl) {
-      p1JoyEl.classList.remove('active');
+      p1JoyEl.classList.remove('active', 'anchored-left');
       p1JoyEl.style.display = 'none';
     }
     if (p2JoyEl) {
-      p2JoyEl.classList.remove('active');
+      p2JoyEl.classList.remove('active', 'anchored-right');
       p2JoyEl.style.display = 'none';
     }
     resetThumb('p1');
@@ -212,7 +248,12 @@ export const VirtualJoystick = (function () {
 
   function setAnchorCorner(anchored) {
     if (p1JoyEl) {
-      if (anchored) p1JoyEl.classList.add('anchored-left', 'active');
+      if (anchored) {
+        p1JoyEl.classList.add('anchored-left', 'active');
+      } else if (!dockedState.p1) {
+        p1JoyEl.classList.remove('anchored-left');
+        if (pointers.p1.id === null) p1JoyEl.classList.remove('active');
+      }
     }
   }
 
@@ -230,15 +271,29 @@ export const VirtualJoystick = (function () {
     pointers[player].id = e.pointerId;
 
     const joyEl = (player === 'p1') ? p1JoyEl : p2JoyEl;
+    const thumbEl = (player === 'p1') ? p1ThumbEl : p2ThumbEl;
+    const isDocked = dockedState[player];
+
     if (joyEl) {
-      const rect = joyEl.getBoundingClientRect();
-      pointers[player].startX = rect.left + rect.width / 2;
-      pointers[player].startY = rect.top + rect.height / 2;
-    } else {
-      pointers[player].startX = e.clientX;
-      pointers[player].startY = e.clientY;
+      if (isDocked) {
+        const rect = joyEl.getBoundingClientRect();
+        pointers[player].startX = rect.left + rect.width / 2;
+        pointers[player].startY = rect.top + rect.height / 2;
+      } else {
+        // Floating touch joystick: appear wherever touched
+        pointers[player].startX = e.clientX;
+        pointers[player].startY = e.clientY;
+        joyEl.style.left = `${e.clientX}px`;
+        joyEl.style.top = `${e.clientY}px`;
+        joyEl.style.right = 'auto';
+        joyEl.style.bottom = 'auto';
+        joyEl.classList.add('active');
+      }
     }
-    updateFromPointer(player, e.clientX, e.clientY);
+
+    if (thumbEl) thumbEl.style.transform = 'translate(0px, 0px)';
+    pointers[player].vector.x = 0;
+    pointers[player].vector.y = 0;
   }
 
   function onPointerMove(e) {
@@ -269,7 +324,7 @@ export const VirtualJoystick = (function () {
 
     if (thumbEl) thumbEl.style.transform = `translate(${thumbX}px, ${thumbY}px)`;
     pointers[player].vector.x = thumbX / maxRadius;
-    pointers[player].vector.y = thumbY / maxRadius;
+    pointers[player].vector.y = deltaY / maxRadius;
   }
 
   function onPointerUp(e) {
@@ -277,13 +332,18 @@ export const VirtualJoystick = (function () {
       if (pointers[player].id === e.pointerId) {
         pointers[player].id = null;
         resetThumb(player);
+        const joyEl = (player === 'p1') ? p1JoyEl : p2JoyEl;
+        // If not docked to gamepad, hide floating joystick on release
+        if (joyEl && !dockedState[player]) {
+          joyEl.classList.remove('active');
+        }
       }
     });
   }
 
   return {
     init,
-    setMode,
+    syncDocking,
     hideAll,
     setThumb,
     setAnchorCorner,
@@ -352,14 +412,15 @@ export function pollGamepads(onPairCallback, mode = 'single') {
     return { x: lx, y: ly, active: (Math.abs(lx) > 0 || Math.abs(ly) > 0) };
   }
 
-  const p1Gp = (p1GamepadIndex !== null) ? gamepads[p1GamepadIndex] : gamepads[0];
-  const p1Stick = readStickAxes(p1Gp, 0, 1, 14, 15, 12, 13);
+  // Only read stick if pad has been explicitly paired
+  const p1Gp = (p1GamepadIndex !== null) ? gamepads[p1GamepadIndex] : null;
+  const p1Stick = p1Gp ? readStickAxes(p1Gp, 0, 1, 14, 15, 12, 13) : { x: 0, y: 0, active: false };
 
   let p2Stick = { x: 0, y: 0, active: false };
   if (p2GamepadIndex !== null && p2GamepadIndex !== p1GamepadIndex && gamepads[p2GamepadIndex]) {
     p2Stick = readStickAxes(gamepads[p2GamepadIndex], 0, 1, 14, 15, 12, 13);
-  } else if (p1Gp) {
-    // Left stick controls Left / P1; Right stick (axes 2 & 3) controls Right / P2 in co-op
+  } else if (p1Gp && mode === 'coop') {
+    // In co-op, right stick (axes 2 & 3) of paired P1 gamepad controls P2
     p2Stick = readStickAxes(p1Gp, 2, 3);
   }
 
