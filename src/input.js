@@ -1,5 +1,5 @@
 // --- src/input.js ---
-// Multi-input Tracker: Gamepad, Gyroscope + Calibration, Touch Joystick, Keyboard & Mouse
+// Multi-input Tracker: Gamepad, Gyroscope + Calibration, Dual Virtual Joysticks, Keyboard & Mouse
 
 import { playRingChime } from './audio.js';
 
@@ -28,7 +28,7 @@ export const mouseP1 = { x: 0, y: 0 };
 
 export function initMouseInput(getGameMode) {
   window.addEventListener('mousemove', (e) => {
-    if (p1GamepadIndex === null && !VirtualJoystick.isActive() && !gyroState.enabled) {
+    if (p1GamepadIndex === null && !VirtualJoystick.isActive('p1') && !gyroState.enabled) {
       const mode = getGameMode();
       const maxX = (mode === 'race' || mode === 'coop') ? window.innerWidth * 0.5 : window.innerWidth;
       if (e.clientX <= maxX) {
@@ -128,20 +128,28 @@ export function calibrateGyroscope(onProgress, onComplete) {
   requestAnimationFrame(sampleStep);
 }
 
-// --- VIRTUAL JOYSTICK ---
+// --- VIRTUAL JOYSTICKS (P1 LEFT & P2 RIGHT) ---
 export const VirtualJoystick = (function () {
-  let activePointerId = null;
-  let startX = 0;
-  let startY = 0;
-  let maxRadius = 65;
-  const vector = { x: 0, y: 0 };
-  let joystickEl = null;
-  let thumbEl = null;
+  let p1JoyEl = null;
+  let p1ThumbEl = null;
+  let p2JoyEl = null;
+  let p2ThumbEl = null;
+
+  let maxRadius = 55;
   let modeGetter = () => 'single';
 
+  const pointers = {
+    p1: { id: null, startX: 0, startY: 0, vector: { x: 0, y: 0 } },
+    p2: { id: null, startX: 0, startY: 0, vector: { x: 0, y: 0 } }
+  };
+
   function init(options = {}) {
-    joystickEl = document.getElementById(options.joystickId || 'virtual-joystick');
-    if (joystickEl) thumbEl = joystickEl.querySelector('.joystick-thumb');
+    p1JoyEl = document.getElementById('virtual-joystick');
+    if (p1JoyEl) p1ThumbEl = p1JoyEl.querySelector('.joystick-thumb');
+
+    p2JoyEl = document.getElementById('virtual-joystick-p2');
+    if (p2JoyEl) p2ThumbEl = p2JoyEl.querySelector('.joystick-thumb');
+
     if (options.maxRadius) maxRadius = options.maxRadius;
     if (options.getGameMode) modeGetter = options.getGameMode;
 
@@ -151,54 +159,105 @@ export const VirtualJoystick = (function () {
     window.addEventListener('pointercancel', onPointerUp);
   }
 
-  function setAnchorCorner(anchored) {
-    if (!joystickEl) return;
-    if (anchored) {
-      joystickEl.classList.add('gyro-anchored', 'active');
+  function setMode(mode) {
+    if (mode === 'single') {
+      if (p1JoyEl) {
+        p1JoyEl.classList.add('anchored-left', 'active');
+        p1JoyEl.style.display = 'block';
+      }
+      if (p2JoyEl) {
+        p2JoyEl.classList.remove('anchored-right', 'active');
+        p2JoyEl.style.display = 'none';
+      }
     } else {
-      joystickEl.classList.remove('gyro-anchored');
-      if (activePointerId === null) joystickEl.classList.remove('active');
+      if (p1JoyEl) {
+        p1JoyEl.classList.add('anchored-left', 'active');
+        p1JoyEl.style.display = 'block';
+      }
+      if (p2JoyEl) {
+        p2JoyEl.classList.add('anchored-right', 'active');
+        p2JoyEl.style.display = 'block';
+      }
+    }
+  }
+
+  function hideAll() {
+    if (p1JoyEl) {
+      p1JoyEl.classList.remove('active');
+      p1JoyEl.style.display = 'none';
+    }
+    if (p2JoyEl) {
+      p2JoyEl.classList.remove('active');
+      p2JoyEl.style.display = 'none';
+    }
+    resetThumb('p1');
+    resetThumb('p2');
+  }
+
+  function setThumb(player, normX, normY) {
+    if (pointers[player].id !== null) return;
+    const thumbEl = (player === 'p1') ? p1ThumbEl : p2ThumbEl;
+    if (!thumbEl) return;
+    const px = THREE.MathUtils.clamp(normX, -1, 1) * maxRadius * 0.75;
+    const py = THREE.MathUtils.clamp(normY, -1, 1) * maxRadius * 0.75;
+    thumbEl.style.transform = `translate(${px}px, ${py}px)`;
+  }
+
+  function resetThumb(player) {
+    const thumbEl = (player === 'p1') ? p1ThumbEl : p2ThumbEl;
+    if (thumbEl) thumbEl.style.transform = 'translate(0px, 0px)';
+    pointers[player].vector.x = 0;
+    pointers[player].vector.y = 0;
+  }
+
+  function setAnchorCorner(anchored) {
+    if (p1JoyEl) {
+      if (anchored) p1JoyEl.classList.add('anchored-left', 'active');
     }
   }
 
   function setThumbFromExternal(normX, normY) {
-    if (activePointerId !== null) return; // User touching joystick overrides gyro
-    if (!thumbEl) return;
-    const px = normX * maxRadius * 0.75;
-    const py = normY * maxRadius * 0.75;
-    thumbEl.style.transform = `translate(${px}px, ${py}px)`;
+    setThumb('p1', normX, normY);
   }
 
   function onPointerDown(e) {
-    if (activePointerId !== null) return;
     if (e.target && e.target.closest('button, select, input, textarea, a, .no-joystick')) return;
-    if (p1GamepadIndex !== null) return;
     const mode = modeGetter();
-    if ((mode === 'race' || mode === 'coop') && e.clientX > window.innerWidth * 0.5) return;
+    const isP2Side = (mode === 'race' || mode === 'coop') && (e.clientX > window.innerWidth * 0.5);
+    const player = isP2Side ? 'p2' : 'p1';
 
-    activePointerId = e.pointerId;
-    startX = e.clientX;
-    startY = e.clientY;
+    if (pointers[player].id !== null) return;
+    pointers[player].id = e.pointerId;
 
-    if (joystickEl && !joystickEl.classList.contains('gyro-anchored')) {
-      joystickEl.style.left = `${startX}px`;
-      joystickEl.style.top = `${startY}px`;
-      joystickEl.classList.add('active');
+    const joyEl = (player === 'p1') ? p1JoyEl : p2JoyEl;
+    if (joyEl) {
+      const rect = joyEl.getBoundingClientRect();
+      pointers[player].startX = rect.left + rect.width / 2;
+      pointers[player].startY = rect.top + rect.height / 2;
+    } else {
+      pointers[player].startX = e.clientX;
+      pointers[player].startY = e.clientY;
     }
-    if (thumbEl) thumbEl.style.transform = 'translate(0px, 0px)';
-    vector.x = 0;
-    vector.y = 0;
+    updateFromPointer(player, e.clientX, e.clientY);
   }
 
   function onPointerMove(e) {
-    if (activePointerId === null || e.pointerId !== activePointerId) return;
-    const deltaX = e.clientX - startX;
-    const deltaY = e.clientY - startY;
+    ['p1', 'p2'].forEach((player) => {
+      if (pointers[player].id === e.pointerId) {
+        updateFromPointer(player, e.clientX, e.clientY);
+      }
+    });
+  }
+
+  function updateFromPointer(player, clientX, clientY) {
+    const deltaX = clientX - pointers[player].startX;
+    const deltaY = clientY - pointers[player].startY;
     const distance = Math.hypot(deltaX, deltaY);
+    const thumbEl = (player === 'p1') ? p1ThumbEl : p2ThumbEl;
 
     if (distance === 0) {
-      vector.x = 0;
-      vector.y = 0;
+      pointers[player].vector.x = 0;
+      pointers[player].vector.y = 0;
       if (thumbEl) thumbEl.style.transform = 'translate(0px, 0px)';
       return;
     }
@@ -209,28 +268,28 @@ export const VirtualJoystick = (function () {
     const thumbY = Math.sin(angle) * clampedDist;
 
     if (thumbEl) thumbEl.style.transform = `translate(${thumbX}px, ${thumbY}px)`;
-    const strength = clampedDist / maxRadius;
-    vector.x = Math.cos(angle) * strength;
-    vector.y = deltaY / maxRadius;
+    pointers[player].vector.x = thumbX / maxRadius;
+    pointers[player].vector.y = thumbY / maxRadius;
   }
 
   function onPointerUp(e) {
-    if (activePointerId === null || e.pointerId !== activePointerId) return;
-    activePointerId = null;
-    vector.x = 0;
-    vector.y = 0;
-    if (joystickEl && !joystickEl.classList.contains('gyro-anchored')) {
-      joystickEl.classList.remove('active');
-    }
-    if (thumbEl) thumbEl.style.transform = 'translate(0px, 0px)';
+    ['p1', 'p2'].forEach((player) => {
+      if (pointers[player].id === e.pointerId) {
+        pointers[player].id = null;
+        resetThumb(player);
+      }
+    });
   }
 
   return {
     init,
-    getVector: () => vector,
-    isActive: () => activePointerId !== null,
+    setMode,
+    hideAll,
+    setThumb,
     setAnchorCorner,
-    setThumbFromExternal
+    setThumbFromExternal,
+    getVector: (player = 'p1') => pointers[player].vector,
+    isActive: (player = 'p1') => pointers[player].id !== null
   };
 })();
 
@@ -253,7 +312,7 @@ export function initMobileControls() {
 }
 
 // Gamepad polling and button pairing
-export function pollGamepads(onPairCallback) {
+export function pollGamepads(onPairCallback, mode = 'single') {
   if (!navigator.getGamepads) return { p1: { x: 0, y: 0, active: false }, p2: { x: 0, y: 0, active: false } };
   const gamepads = navigator.getGamepads();
 
@@ -277,29 +336,34 @@ export function pollGamepads(onPairCallback) {
     }
   }
 
-  function readLeftStick(gpIndex) {
-    if (gpIndex === null) return { x: 0, y: 0, active: false };
-    const gp = gamepads[gpIndex];
+  function readStickAxes(gp, axisXIdx, axisYIdx, btnL, btnR, btnU, btnD) {
     if (!gp || !gp.connected) return { x: 0, y: 0, active: false };
-
-    let lx = gp.axes[0] || 0;
-    let ly = gp.axes[1] || 0;
+    let lx = gp.axes[axisXIdx] || 0;
+    let ly = gp.axes[axisYIdx] || 0;
     const DEADZONE = 0.18;
     if (Math.abs(lx) < DEADZONE) lx = 0;
     if (Math.abs(ly) < DEADZONE) ly = 0;
 
-    if (gp.buttons[14]?.pressed) lx = -1.0;
-    if (gp.buttons[15]?.pressed) lx = 1.0;
-    if (gp.buttons[12]?.pressed) ly = -1.0;
-    if (gp.buttons[13]?.pressed) ly = 1.0;
+    if (btnL && gp.buttons[btnL]?.pressed) lx = -1.0;
+    if (btnR && gp.buttons[btnR]?.pressed) lx = 1.0;
+    if (btnU && gp.buttons[btnU]?.pressed) ly = -1.0;
+    if (btnD && gp.buttons[btnD]?.pressed) ly = 1.0;
 
     return { x: lx, y: ly, active: (Math.abs(lx) > 0 || Math.abs(ly) > 0) };
   }
 
-  return {
-    p1: readLeftStick(p1GamepadIndex),
-    p2: readLeftStick(p2GamepadIndex)
-  };
+  const p1Gp = (p1GamepadIndex !== null) ? gamepads[p1GamepadIndex] : gamepads[0];
+  const p1Stick = readStickAxes(p1Gp, 0, 1, 14, 15, 12, 13);
+
+  let p2Stick = { x: 0, y: 0, active: false };
+  if (p2GamepadIndex !== null && p2GamepadIndex !== p1GamepadIndex && gamepads[p2GamepadIndex]) {
+    p2Stick = readStickAxes(gamepads[p2GamepadIndex], 0, 1, 14, 15, 12, 13);
+  } else if (p1Gp) {
+    // Left stick controls Left / P1; Right stick (axes 2 & 3) controls Right / P2 in co-op
+    p2Stick = readStickAxes(p1Gp, 2, 3);
+  }
+
+  return { p1: p1Stick, p2: p2Stick };
 }
 
 let carouselCooldown = 0;

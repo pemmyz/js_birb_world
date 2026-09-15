@@ -52,7 +52,7 @@ const p2 = createPlayerState();
 
 // Initialize Inputs & Sensors
 Input.initMouseInput(() => selectedMode);
-Input.VirtualJoystick.init({ maxRadius: 65, getGameMode: () => selectedMode });
+Input.VirtualJoystick.init({ maxRadius: 55, getGameMode: () => selectedMode });
 Input.initMobileControls();
 Input.initGyroscope();
 
@@ -115,6 +115,7 @@ function launchFlight() {
   isGamePaused = false;
   UI.showPauseOverlay(false);
   document.body.className = `mode-${selectedMode}`;
+  Input.VirtualJoystick.setMode(selectedMode);
 
   const activeMap = getMapByIndex(currentMapIndex);
   World.loadMap(activeMap);
@@ -222,6 +223,7 @@ UI.setupUIEventListeners({
     currentGameState = 'menu';
     isGamePaused = false;
     UI.showPauseOverlay(false);
+    Input.VirtualJoystick.hideAll();
     UI.showModeMenu();
   },
   onOpenMapCarousel: () => {
@@ -229,6 +231,7 @@ UI.setupUIEventListeners({
     currentGameState = 'map-select';
     isGamePaused = false;
     UI.showPauseOverlay(false);
+    Input.VirtualJoystick.hideAll();
     const labels = { single: '1 Player (Solo)', coop: '2P Reverse Co-Op', race: '2P Competition Race' };
     UI.showMapCarousel(labels[selectedMode]);
     refreshCarouselUI();
@@ -388,7 +391,7 @@ function animate() {
   }
 
   // Poll Gamepads for ABXY pairing & controller tester
-  const gpInputs = Input.pollGamepads(() => UI.updateControllerUI());
+  const gpInputs = Input.pollGamepads(() => UI.updateControllerUI(), selectedMode);
   UI.renderControllerTestModal();
 
   // Carousel Gamepad / Keyboard Navigation
@@ -409,7 +412,22 @@ function animate() {
 
   if (currentGameState !== 'flight' || isGamePaused) return;
 
-  // Steering Input Hierarchy (Pad > Gyro > Touch Stick > Keys > Mouse)
+  // Mirror analog stick movement directly onto virtual joysticks
+  if (gpInputs.p1.active) {
+    Input.VirtualJoystick.setThumb('p1', gpInputs.p1.x, gpInputs.p1.y);
+  } else if (!Input.VirtualJoystick.isActive('p1') && !Input.gyroState.enabled) {
+    Input.VirtualJoystick.setThumb('p1', 0, 0);
+  }
+
+  if (selectedMode === 'race' || selectedMode === 'coop') {
+    if (gpInputs.p2.active) {
+      Input.VirtualJoystick.setThumb('p2', gpInputs.p2.x, gpInputs.p2.y);
+    } else if (!Input.VirtualJoystick.isActive('p2')) {
+      Input.VirtualJoystick.setThumb('p2', 0, 0);
+    }
+  }
+
+  // Steering Input Hierarchy (Pad > Touch Stick > Gyro > Keys > Mouse)
   const steerP1 = { x: 0, y: 0 };
   const hasArrowKeys = Input.keys.ArrowLeft || Input.keys.ArrowRight || Input.keys.ArrowUp || Input.keys.ArrowDown;
   const hasSoloWasd = (selectedMode === 'single') && (Input.keys.a || Input.keys.A || Input.keys.d || Input.keys.D || Input.keys.w || Input.keys.W || Input.keys.s || Input.keys.S);
@@ -417,8 +435,8 @@ function animate() {
   if (gpInputs.p1.active) {
     steerP1.x = gpInputs.p1.x;
     steerP1.y = -gpInputs.p1.y * 1.25;
-  } else if (Input.VirtualJoystick.isActive()) {
-    const joy = Input.VirtualJoystick.getVector();
+  } else if (Input.VirtualJoystick.isActive('p1')) {
+    const joy = Input.VirtualJoystick.getVector('p1');
     steerP1.x = joy.x;
     steerP1.y = -joy.y * 1.35;
   } else if (Input.gyroState.enabled) {
@@ -444,6 +462,10 @@ function animate() {
     if (gpInputs.p2.active) {
       steerP2.x = gpInputs.p2.x;
       steerP2.y = -gpInputs.p2.y * 1.25;
+    } else if (Input.VirtualJoystick.isActive('p2')) {
+      const joy = Input.VirtualJoystick.getVector('p2');
+      steerP2.x = joy.x;
+      steerP2.y = -joy.y * 1.35;
     } else {
       if (Input.keys.a || Input.keys.A) steerP2.x -= 1.0;
       if (Input.keys.d || Input.keys.D) steerP2.x += 1.0;

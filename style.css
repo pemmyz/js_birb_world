@@ -1,3 +1,7 @@
+:root {
+  --joy-size: 135px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -1418,7 +1422,7 @@ body.mobile-mode #mobile-controls { display: flex; }
 #mobile-action { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin-bottom: 25px; }
 
 /* =========================================
-   VIRTUAL JOYSTICK (FLOATING OR FIXED CORNER)
+   VIRTUAL JOYSTICK (P1 LEFT & P2 RIGHT)
    ========================================= */
 .joystick-container {
   position: fixed;
@@ -1435,20 +1439,39 @@ body.mobile-mode #mobile-controls { display: flex; }
   visibility: visible;
 }
 
-/* When Gyro is active, anchor joystick at bottom-left exactly one width & height away */
+body.mode-menu .joystick-container,
+body.mode-map-select .joystick-container {
+  display: none !important;
+}
+
+/* Positioned from the screen edge by exactly its own width & height */
+.joystick-container.anchored-left,
 .joystick-container.gyro-anchored {
-  left: 135px !important;
+  left: var(--joy-size) !important;
+  right: auto !important;
   top: auto !important;
-  bottom: 135px !important;
+  bottom: var(--joy-size) !important;
   transform: none !important;
   opacity: 0.95 !important;
   visibility: visible !important;
+  pointer-events: auto;
+}
+
+.joystick-container.anchored-right {
+  right: var(--joy-size) !important;
+  left: auto !important;
+  top: auto !important;
+  bottom: var(--joy-size) !important;
+  transform: none !important;
+  opacity: 0.95 !important;
+  visibility: visible !important;
+  pointer-events: auto;
 }
 
 .joystick-base {
   position: relative;
-  width: 135px;
-  height: 135px;
+  width: var(--joy-size);
+  height: var(--joy-size);
   border-radius: 50%;
   background: radial-gradient(circle, rgba(46, 204, 113, 0.22) 0%, rgba(27, 97, 43, 0.7) 60%, rgba(18, 48, 30, 0.85) 100%);
   border: 2px solid rgba(244, 208, 63, 0.8);
@@ -1456,6 +1479,18 @@ body.mobile-mode #mobile-controls { display: flex; }
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+/* Sapphire Blue theme for Player 2 Joystick */
+.joystick-p2 .joystick-base {
+  background: radial-gradient(circle, rgba(52, 152, 219, 0.25) 0%, rgba(41, 128, 185, 0.7) 60%, rgba(20, 40, 60, 0.85) 100%);
+  border-color: rgba(116, 185, 255, 0.85);
+  box-shadow: 0 0 20px rgba(52, 152, 219, 0.4);
+}
+
+.joystick-p2 .joystick-thumb {
+  background: radial-gradient(circle at 35% 35%, #dff9fb 0%, #74b9ff 45%, #2980b9 85%, #0984e3 100%);
+  box-shadow: 0 0 14px rgba(116, 185, 255, 0.85);
 }
 
 .joystick-ring {
@@ -1484,6 +1519,10 @@ body.mobile-mode #mobile-controls { display: flex; }
    MOBILE RESPONSIVENESS FIXES
    ========================================= */
 @media (max-width: 600px) {
+  :root {
+    --joy-size: 85px;
+  }
+
   .fullscreen-top-btn {
     top: 10px;
     left: 10px;
@@ -1589,11 +1628,6 @@ body.mobile-mode #mobile-controls { display: flex; }
   .carousel-btn {
     padding: 8px 14px;
     font-size: 0.78rem;
-  }
-
-  .joystick-container.gyro-anchored {
-    left: 80px !important;
-    bottom: 80px !important;
   }
 }
 
