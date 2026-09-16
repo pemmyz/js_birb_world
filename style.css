@@ -352,6 +352,15 @@ body:not(.mode-menu) #start-menu-modal {
   animation: none;
 }
 
+.pairing-note {
+  margin-top: 7px;
+  font-size: 0.62rem;
+  font-weight: bold;
+  color: #a7e1f2;
+  opacity: 0.85;
+  letter-spacing: 0.4px;
+}
+
 @keyframes pulsePad {
   0%, 100% { opacity: 0.75; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.02); }
