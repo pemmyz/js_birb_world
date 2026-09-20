@@ -52,7 +52,7 @@ const p2 = createPlayerState();
 
 // Initialize Inputs & Sensors
 Input.initMouseInput(() => selectedMode);
-Input.VirtualJoystick.init({ maxRadius: 55, getGameMode: () => selectedMode });
+Input.VirtualJoystick.init({ maxRadius: 72, getGameMode: () => selectedMode });
 Input.initMobileControls();
 Input.initGyroscope();
 

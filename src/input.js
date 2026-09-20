@@ -135,7 +135,7 @@ export const VirtualJoystick = (function () {
   let p2JoyEl = null;
   let p2ThumbEl = null;
 
-  let maxRadius = 55;
+  let maxRadius = 72;
   let modeGetter = () => 'single';
 
   const dockedState = {

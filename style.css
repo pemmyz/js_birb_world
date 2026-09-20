@@ -1,5 +1,5 @@
 :root {
-  --joy-size: 135px;
+  --joy-size: 176px;
 }
 
 * {
@@ -1545,8 +1545,8 @@ body.mode-map-select .joystick-container {
 
 .joystick-ring {
   position: absolute;
-  width: 58px;
-  height: 58px;
+  width: 75px;
+  height: 75px;
   border-radius: 50%;
   border: 1.5px dashed rgba(241, 196, 15, 0.75);
 }
@@ -1556,8 +1556,8 @@ body.mode-map-select .joystick-container {
 
 .joystick-thumb {
   position: absolute;
-  width: 46px;
-  height: 46px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #fff6a6 0%, #f1c40f 45%, #27ae60 85%, #1e612b 100%);
   border: 2px solid #fffdec;
@@ -1570,7 +1570,7 @@ body.mode-map-select .joystick-container {
    ========================================= */
 @media (max-width: 600px) {
   :root {
-    --joy-size: 85px;
+    --joy-size: 110px;
   }
 
   .fullscreen-top-btn {
