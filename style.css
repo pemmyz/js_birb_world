@@ -1569,10 +1569,6 @@ body.mode-map-select .joystick-container {
    MOBILE RESPONSIVENESS FIXES
    ========================================= */
 @media (max-width: 600px) {
-  :root {
-    --joy-size: 110px;
-  }
-
   .fullscreen-top-btn {
     top: 10px;
     left: 10px;
