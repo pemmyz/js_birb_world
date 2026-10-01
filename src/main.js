@@ -73,9 +73,29 @@ gliderP1.root.rotation.set(0, p1.yaw, 0, 'YXZ');
 gliderP1.setVisible(true);
 gliderP2.setVisible(false);
 
+// Hide closest gate checkpoint during demo mode
+let closestRing = null;
+let minRingDist = Infinity;
+World.vortexRings.forEach((ring) => {
+  const dist = p1.pos.distanceTo(ring.pos);
+  if (dist < minRingDist) {
+    minRingDist = dist;
+    closestRing = ring;
+  }
+});
+if (closestRing) {
+  closestRing.group.visible = false;
+}
+
 function exitDemo(e) {
   if (currentGameState !== 'demo') return;
   if (e && e.target && e.target.closest('#fullscreen-btn, #creator-link')) return;
+
+  // Restore all checkpoint gates visibility for normal game
+  World.vortexRings.forEach((ring) => {
+    ring.group.visible = true;
+  });
+
   Audio.unlockAudio();
   Audio.playConfirmBeep();
   currentGameState = 'menu';
