@@ -30,6 +30,81 @@ body, html {
 }
 
 /* =========================================
+   BIRB WORLD DEMO OVERLAY
+   ========================================= */
+.demo-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9500;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 44px 20px 60px 20px;
+  background: radial-gradient(circle at center, transparent 35%, rgba(4, 12, 18, 0.72) 100%);
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.35s ease, visibility 0.35s;
+  cursor: pointer;
+}
+
+body:not(.mode-demo) .demo-overlay {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.mode-demo #mid-controls-bar,
+body.mode-demo .player-panel,
+body.mode-demo #mobile-controls,
+body.mode-demo .joystick-container,
+body.mode-demo #quick-actions-container {
+  display: none !important;
+}
+
+.demo-title-box {
+  text-align: center;
+  margin-top: 14px;
+}
+
+.demo-prompt {
+  background: rgba(8, 20, 28, 0.92);
+  border: 2px solid #f1c40f;
+  color: #fffdec;
+  font-size: 1.12rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  padding: 14px 28px;
+  border-radius: 8px;
+  box-shadow: 0 0 25px rgba(241, 196, 15, 0.6), 0 8px 24px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  animation: promptBlink 1.4s infinite ease-in-out;
+}
+
+.demo-prompt.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes promptBlink {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(241, 196, 15, 0.4);
+    border-color: #f1c40f;
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(241, 196, 15, 0.95);
+    border-color: #ffeaa7;
+  }
+}
+
+/* =========================================
    PAUSE & BACKGROUND OVERLAY
    ========================================= */
 .pause-modal {

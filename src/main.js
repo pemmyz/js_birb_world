@@ -10,7 +10,7 @@ import * as UI from './ui.js';
 import { getMapByIndex, getTotalMaps } from './maps/mapRegistry.js';
 
 // --- Game Engine State ---
-let currentGameState = 'menu'; // 'menu' | 'map-select' | 'flight'
+let currentGameState = 'demo'; // 'demo' | 'menu' | 'map-select' | 'flight'
 let isGamePaused = false;
 let autoPauseEnabled = true;
 let selectedMode = 'single';
@@ -21,6 +21,11 @@ let raceStartTime = 0;
 let racePausedAccumulated = 0;
 let pauseTimestamp = 0;
 let raceWinner = null;
+
+// Birb World Demo State
+let demoElapsed = 0;
+let demoPromptVisible = false;
+const DEMO_ROTATION_DURATION = 4.0; // 4 seconds for full rotation around Birb
 
 // Real-time FPS Calculation
 let fpsFrames = 0;
@@ -55,6 +60,32 @@ Input.initMouseInput(() => selectedMode);
 Input.VirtualJoystick.init({ maxRadius: 72, getGameMode: () => selectedMode });
 Input.initMobileControls();
 Input.initGyroscope();
+
+// Initial Map & Glider Setup for Birb World Demo
+const initialMap = getMapByIndex(0);
+World.loadMap(initialMap);
+p1.pos.set(0, initialMap.spawns.p1.pos[1], initialMap.spawns.p1.pos[2]);
+p1.yaw = initialMap.spawns.p1.yaw || 0.0;
+p1.pitch = 0.0;
+p1.roll = 0.0;
+gliderP1.root.position.copy(p1.pos);
+gliderP1.root.rotation.set(0, p1.yaw, 0, 'YXZ');
+gliderP1.setVisible(true);
+gliderP2.setVisible(false);
+
+function exitDemo(e) {
+  if (currentGameState !== 'demo') return;
+  if (e && e.target && e.target.closest('#fullscreen-btn, #creator-link')) return;
+  Audio.unlockAudio();
+  Audio.playConfirmBeep();
+  currentGameState = 'menu';
+  UI.hideDemoOverlay();
+  UI.showModeMenu();
+}
+
+window.addEventListener('keydown', (e) => exitDemo(e));
+window.addEventListener('pointerdown', (e) => exitDemo(e));
+window.addEventListener('touchstart', (e) => exitDemo(e));
 
 // --- PAUSE & RESUME LOGIC (Background / Inactive tab handler) ---
 function pauseGame() {
@@ -393,6 +424,51 @@ function animate() {
   const gpInputs = Input.pollGamepads(() => UI.updateControllerUI(), selectedMode);
   UI.renderControllerTestModal();
 
+  // --- BIRB WORLD DEMO ORBIT LOOP ---
+  if (currentGameState === 'demo') {
+    if (gpInputs.p1.active) {
+      exitDemo();
+      return;
+    }
+
+    demoElapsed += delta;
+
+    // Rotate camera smoothly around Birb
+    const orbitAngle = (demoElapsed / DEMO_ROTATION_DURATION) * Math.PI * 2;
+    const orbitRadius = 9.2;
+    const orbitHeight = 1.4;
+
+    const birbCenter = p1.pos.clone().add(new THREE.Vector3(0, -0.45, 0));
+    const camX = birbCenter.x + Math.sin(orbitAngle) * orbitRadius;
+    const camY = birbCenter.y + orbitHeight + Math.sin(demoElapsed * 1.5) * 0.25;
+    const camZ = birbCenter.z + Math.cos(orbitAngle) * orbitRadius;
+
+    World.camera1.position.set(camX, camY, camZ);
+    World.camera1.lookAt(birbCenter.clone().add(new THREE.Vector3(0, 0.4, 0)));
+
+    // Gentle bird and canopy floating animation
+    gliderP1.paragliderGroup.position.y = Math.sin(t * 1.8) * 0.08;
+    gliderP1.birdGroup.rotation.z = Math.sin(t * 1.2) * 0.04;
+    gliderP1.canopyGroup.scale.y = 1.0 + Math.sin(t * 2.8) * 0.015;
+    gliderP1.root.updateMatrixWorld(true);
+    gliderP1.updateRopes();
+
+    World.updateWorld(delta, t);
+
+    // After rotating around Birb, display prompt
+    if (demoElapsed >= DEMO_ROTATION_DURATION && !demoPromptVisible) {
+      demoPromptVisible = true;
+      UI.showDemoPrompt(true);
+    }
+
+    World.renderer.setScissorTest(false);
+    World.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    World.camera1.aspect = window.innerWidth / window.innerHeight;
+    World.camera1.updateProjectionMatrix();
+    World.renderer.render(World.scene, World.camera1);
+    return;
+  }
+
   // Carousel Gamepad / Keyboard Navigation
   if (currentGameState === 'map-select') {
     const nav = Input.pollCarouselInput(delta);
@@ -554,5 +630,4 @@ window.addEventListener('resize', () => {
   }
 });
 
-UI.showModeMenu();
 animate();

@@ -56,6 +56,20 @@ const p2FpsEl = document.getElementById('p2-fps-val');
 
 let padTestSelectedSlot = 'p1'; // 'p1' or 'p2'
 
+export function showDemoPrompt(show) {
+  const promptEl = document.getElementById('demo-prompt');
+  if (promptEl) {
+    promptEl.classList.toggle('show', show);
+  }
+}
+
+export function hideDemoOverlay() {
+  const overlayEl = document.getElementById('demo-overlay');
+  if (overlayEl) {
+    overlayEl.style.display = 'none';
+  }
+}
+
 export function showPauseOverlay(show) {
   if (pauseOverlay) {
     pauseOverlay.classList.toggle('active', show);
