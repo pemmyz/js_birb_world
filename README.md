@@ -4,6 +4,8 @@
 
 # PARABIRD '96 – World Tour Speedway
 
+![banner](images/banner.png)
+
 [![Three.js](https://img.shields.io/badge/Three.js-r128-black?style=flat&logo=three.js)](https://threejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Birb World Version](https://img.shields.io/badge/Birb%20World-v2.4.96%20Retro%20Tour-00cec9)](https://pemmyz.github.io/js_birb_world/)
