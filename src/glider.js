@@ -106,6 +106,36 @@ export function createPlayerGlider(panelColors, birdColor, beakColor, scene) {
   eyeLeft.position.set(-0.13, 0.19, -0.62);
   birdGroup.add(eyeLeft);
 
+  // Feet (low-poly stick legs and feet attached to the bottom of the body)
+  const legMat = new THREE.MeshLambertMaterial({ color: 0x222222, flatShading: true });
+  const legRadius = 0.032;
+  const legHeight = 0.48;
+  const footLength = 0.38;
+
+  function createBirbLeg(xOffset) {
+    const legGroup = new THREE.Group();
+    legGroup.position.set(xOffset, -0.54, 0.05);
+
+    // Vertical stick leg
+    const stemGeo = new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 5);
+    const stemMesh = new THREE.Mesh(stemGeo, legMat);
+    stemMesh.position.set(0, -legHeight / 2, 0);
+    legGroup.add(stemMesh);
+
+    // Forward-pointing foot stick
+    const footGeo = new THREE.CylinderGeometry(legRadius, legRadius, footLength, 5);
+    footGeo.rotateX(Math.PI / 2);
+    const footMesh = new THREE.Mesh(footGeo, legMat);
+    footMesh.position.set(0, -legHeight, -footLength / 2 + 0.04);
+    footMesh.rotation.x = 0.18; // Downward-forward pitch matching the reference photo
+    legGroup.add(footMesh);
+
+    return legGroup;
+  }
+
+  birdGroup.add(createBirbLeg(-0.16)); // Left leg
+  birdGroup.add(createBirbLeg(0.16));  // Right leg
+
   const ringMat = new THREE.MeshLambertMaterial({ color: 0x82878d, flatShading: true });
   const ringGeo = new THREE.TorusGeometry(0.09, 0.025, 6, 12);
   const leftRingGroup = new THREE.Group();
