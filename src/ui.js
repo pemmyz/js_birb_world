@@ -1,5 +1,5 @@
 // --- src/ui.js ---
-// UI Management: Menus, Carousel, Controller Test Lab, Gyro Calibration, Auto-Pause & Volume
+// UI Management: Menus, Carousel, Controller Test Lab, Gyro Calibration, Auto-Pause, Volume & Low-Res Mode
 
 import { playCarouselTick } from './audio.js';
 import { p1GamepadIndex, p2GamepadIndex } from './input.js';
@@ -108,6 +108,22 @@ export function updateAutoPauseUI(enabled) {
   if (btn) {
     btn.innerText = enabled ? '⏸️ Auto-Pause: ON' : '⏸️ Auto-Pause: OFF';
     btn.classList.toggle('active', enabled);
+  }
+}
+
+export function updatePixelModeUI(enabled) {
+  const btn = document.getElementById('pixel-toggle-btn');
+  const qaBtn = document.getElementById('qa-btn-pixel');
+  const label = enabled ? '👾 Low-Res: ON' : '👾 Low-Res: OFF';
+
+  if (btn) {
+    btn.innerText = label;
+    btn.classList.toggle('active', enabled);
+  }
+  if (qaBtn) {
+    qaBtn.innerText = label;
+    qaBtn.classList.toggle('active', enabled);
+    qaBtn.style.borderColor = enabled ? '#55efc4' : '';
   }
 }
 
@@ -292,6 +308,7 @@ export function setupUIEventListeners(handlers) {
   document.getElementById('map-select-btn').addEventListener('click', () => handlers.onOpenMapCarousel());
   document.getElementById('reset-btn').addEventListener('click', () => handlers.onResetMatch());
   document.getElementById('invert-btn').addEventListener('click', () => handlers.onToggleInvert());
+  document.getElementById('pixel-toggle-btn')?.addEventListener('click', () => handlers.onTogglePixelMode?.());
   document.getElementById('gyro-toggle-btn')?.addEventListener('click', () => handlers.onToggleGyro());
 
   document.getElementById('btn-rematch').addEventListener('click', () => handlers.onResetMatch());
@@ -347,6 +364,7 @@ export function setupUIEventListeners(handlers) {
   });
 
   document.getElementById('qa-btn-invert')?.addEventListener('click', () => handlers.onToggleInvert());
+  document.getElementById('qa-btn-pixel')?.addEventListener('click', () => handlers.onTogglePixelMode?.());
   document.getElementById('qa-btn-reset')?.addEventListener('click', () => handlers.onResetMatch());
   document.getElementById('qa-btn-reload-maps')?.addEventListener('click', () => handlers.onForceReloadMaps());
 

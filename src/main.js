@@ -8,6 +8,7 @@ import { createPlayerState, formatTime, updatePlayerPhysics, updatePlayerCamera 
 import * as World from './world.js';
 import * as UI from './ui.js';
 import { getMapByIndex, getTotalMaps } from './maps/mapRegistry.js';
+import { PixelResolutionController } from './pixelMode.js';
 
 // --- Game Engine State ---
 let currentGameState = 'demo'; // 'demo' | 'menu' | 'map-select' | 'flight'
@@ -35,6 +36,9 @@ let currentFps = 60;
 // Three.js Scene Setup
 const container = document.getElementById('canvas-container');
 World.initWorld(container);
+
+// Low-Resolution / Pixel-Art Controller
+const pixelController = new PixelResolutionController(World.renderer, World.renderer.domElement, 0.25);
 
 // Player Glider Mesh Creation
 const gliderP1 = createPlayerGlider(
@@ -294,6 +298,11 @@ UI.setupUIEventListeners({
       invBtn.classList.toggle('active', invertPitch);
       invBtn.innerText = invertPitch ? '↕ Invert: ON' : '↕ Invert: OFF';
     }
+  },
+  onTogglePixelMode: () => {
+    const isPixel = pixelController.toggle();
+    UI.updatePixelModeUI(isPixel);
+    Audio.playConfirmBeep();
   },
   onWaterLevelChange: (newLevel) => {
     World.setWaterLevel(newLevel);
@@ -634,9 +643,10 @@ function animate() {
 }
 
 window.addEventListener('resize', () => {
+  pixelController.update();
+
   const width = window.innerWidth;
   const height = window.innerHeight;
-  World.renderer.setSize(width, height);
 
   if (selectedMode === 'race' || selectedMode === 'coop') {
     const halfWidth = width * 0.5;
