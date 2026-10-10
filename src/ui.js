@@ -249,6 +249,17 @@ export function showWinnerBanner(playerId) {
   if (banner) banner.classList.add('show');
 }
 
+export function showLowAltWarning(playerId) {
+  const warningEl = document.getElementById(`${playerId}-low-alt-warning`);
+  if (warningEl) {
+    warningEl.classList.add('show');
+    clearTimeout(warningEl._timer);
+    warningEl._timer = setTimeout(() => {
+      warningEl.classList.remove('show');
+    }, 1100);
+  }
+}
+
 export function showFinishModal(title, subtitle, p1Time, p2Time) {
   const modal = document.getElementById('race-finish-modal');
   document.getElementById('race-winner-title').innerText = title;

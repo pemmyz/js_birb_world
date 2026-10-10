@@ -30,7 +30,10 @@ export function formatTime(seconds) {
   return `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
 }
 
-export function updatePlayerPhysics(player, glider, steerInput, playerId, delta, t, invertPitch, vortexRings, onGateCleared, onFinish) {
+export function updatePlayerPhysics(
+  player, glider, steerInput, playerId, delta, t, invertPitch,
+  vortexRings, onGateCleared, onFinish, getGroundHeight, onLowAlt
+) {
   let pitchIntent = steerInput.y;
   if (invertPitch) pitchIntent = -pitchIntent;
 
@@ -53,7 +56,26 @@ export function updatePlayerPhysics(player, glider, steerInput, playerId, delta,
   const verticalSpeed = (player.pitch * 16.5) - 0.75;
   player.pos.y += verticalSpeed * delta;
 
-  if (player.pos.y < 7.5) player.pos.y = 7.5;
+  // Ground & Water Collision Detection
+  const groundAlt = getGroundHeight ? getGroundHeight(player.pos.x, player.pos.z) : 0;
+  const minSafeAlt = groundAlt + 1.2;
+
+  if (player.pos.y <= minSafeAlt) {
+    // Pop up and away to a safe distance from the ground
+    const popDistance = 25.0;
+    player.pos.y = groundAlt + popDistance;
+
+    // Pitch upward and level roll to push flight away from the ground
+    player.pitch = 0.35;
+    player.steerPitch = 0.35;
+    player.roll *= 0.3;
+
+    // Boost forward to break descent trajectory
+    player.pos.x += forwardX * 8.0;
+    player.pos.z += forwardZ * 8.0;
+
+    if (onLowAlt) onLowAlt(playerId);
+  }
 
   glider.root.position.copy(player.pos);
   glider.root.rotation.set(0, player.yaw, 0, 'YXZ');

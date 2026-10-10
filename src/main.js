@@ -388,6 +388,11 @@ function onGateCleared(playerId) {
   UI.triggerRingPopup(playerId);
 }
 
+function onLowAltWarning(playerId) {
+  UI.showLowAltWarning(playerId);
+  Audio.playCheckpointPlonk(0.55);
+}
+
 function onFinish(playerId) {
   const activeMap = getMapByIndex(currentMapIndex);
   const p = playerId === 'p1' ? p1 : p2;
@@ -584,10 +589,17 @@ function animate() {
   }
 
   // Aerodynamics & Kinematics Step
-  const spdP1 = updatePlayerPhysics(p1, gliderP1, steerP1, 'p1', delta, t, invertPitch, World.vortexRings, onGateCleared, onFinish);
+  const spdP1 = updatePlayerPhysics(
+    p1, gliderP1, steerP1, 'p1', delta, t, invertPitch,
+    World.vortexRings, onGateCleared, onFinish, World.getGroundHeight, onLowAltWarning
+  );
+
   let spdP2 = 0;
   if (selectedMode === 'race' || selectedMode === 'coop') {
-    spdP2 = updatePlayerPhysics(p2, gliderP2, steerP2, 'p2', delta, t, invertPitch, World.vortexRings, onGateCleared, onFinish);
+    spdP2 = updatePlayerPhysics(
+      p2, gliderP2, steerP2, 'p2', delta, t, invertPitch,
+      World.vortexRings, onGateCleared, onFinish, World.getGroundHeight, onLowAltWarning
+    );
   }
 
   const activeAirspeed = (selectedMode === 'race' || selectedMode === 'coop')

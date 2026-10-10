@@ -1454,6 +1454,36 @@ body.mode-coop .right-panel { display: block; width: 50%; left: 50%; }
 
 .winner-banner.show { transform: translate(-50%, -50%) scale(1); }
 
+/* =========================================
+   LOW ALTITUDE / GROUND COLLISION WARNING
+   ========================================= */
+.low-alt-warning {
+  position: absolute;
+  top: 28%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.7);
+  background: rgba(192, 57, 43, 0.95);
+  color: #fffdec;
+  border: 2.5px solid #f1c40f;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  text-shadow: 2px 2px 0 #000;
+  box-shadow: 0 0 25px rgba(231, 76, 60, 0.85), 0 0 10px rgba(241, 196, 15, 0.6);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.18s ease-out;
+  z-index: 6500;
+  white-space: nowrap;
+}
+
+.low-alt-warning.show {
+  transform: translate(-50%, -50%) scale(1.05);
+  opacity: 1;
+}
+
 .race-finish-modal {
   position: fixed;
   top: 0;

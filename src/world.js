@@ -13,6 +13,7 @@ let fillLight = null;
 let terrainMesh = null;
 let oceanMesh = null;
 let currentWaterLevel = 0;
+let currentMapConfig = null;
 
 const islandGroup = new THREE.Group();
 const cloudGroup = new THREE.Group();
@@ -73,6 +74,8 @@ function disposeHierarchy(obj) {
  * Builds or rebuilds the entire world based on the selected map configuration object.
  */
 export function loadMap(mapConfig) {
+  currentMapConfig = mapConfig;
+
   // 1. Atmosphere, Sky & Fog
   scene.background = new THREE.Color(mapConfig.skyColor);
   scene.fog = new THREE.FogExp2(new THREE.Color(mapConfig.fogColor), mapConfig.fogDensity);
@@ -341,6 +344,17 @@ function spawnClouds(count, getHeightAt, baseAlt = 175) {
  */
 export function getWaterLevel() {
   return currentWaterLevel;
+}
+
+/**
+ * Queries ground altitude (max of terrain height or active water surface) at world (x, z).
+ */
+export function getGroundHeight(x, z) {
+  const terrainH = (currentMapConfig && currentMapConfig.terrain && typeof currentMapConfig.terrain.getHeightAt === 'function')
+    ? currentMapConfig.terrain.getHeightAt(x, z)
+    : 0;
+  const waterH = currentWaterLevel > -450 ? currentWaterLevel : -Infinity;
+  return Math.max(terrainH, waterH);
 }
 
 /**
