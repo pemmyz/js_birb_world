@@ -187,6 +187,9 @@ function launchFlight() {
 function resetFlightMatch() {
   const activeMap = getMapByIndex(currentMapIndex);
 
+  // Use extended cinematic flyover duration if the map defines one
+  const introDuration = (typeof activeMap.cinematicFlyover === 'function') ? 6.8 : 3.5;
+
   p1.pos.set(
     (selectedMode === 'race' || selectedMode === 'coop') ? -8 : 0,
     activeMap.spawns.p1.pos[1],
@@ -204,6 +207,7 @@ function resetFlightMatch() {
   p1.finishTime = null;
   p1.intro.active = true;
   p1.intro.elapsed = 0.0;
+  p1.intro.duration = introDuration;
 
   if (selectedMode === 'coop') {
     const totalG = activeMap.waypoints.length;
@@ -225,6 +229,7 @@ function resetFlightMatch() {
     p2.finishTime = null;
     p2.intro.active = true;
     p2.intro.elapsed = 0.0;
+    p2.intro.duration = introDuration;
   } else {
     p2.pos.set(8, activeMap.spawns.p1.pos[1], activeMap.spawns.p1.pos[2]);
     p2.yaw = activeMap.spawns.p2Race.yaw || 0.0;
@@ -239,6 +244,7 @@ function resetFlightMatch() {
     p2.finishTime = null;
     p2.intro.active = true;
     p2.intro.elapsed = 0.0;
+    p2.intro.duration = introDuration;
   }
 
   if (selectedMode === 'single') {
@@ -588,6 +594,8 @@ function animate() {
     }
   }
 
+  const activeMap = getMapByIndex(currentMapIndex);
+
   // Aerodynamics & Kinematics Step
   const spdP1 = updatePlayerPhysics(
     p1, gliderP1, steerP1, 'p1', delta, t, invertPitch,
@@ -609,9 +617,10 @@ function animate() {
 
   World.updateWorld(delta, t);
 
-  updatePlayerCamera(World.camera1, p1, delta);
+  // Update Player Cameras (With support for custom map cinematic flyovers)
+  updatePlayerCamera(World.camera1, p1, delta, activeMap);
   if (selectedMode === 'race' || selectedMode === 'coop') {
-    updatePlayerCamera(World.camera2, p2, delta);
+    updatePlayerCamera(World.camera2, p2, delta, activeMap);
   }
 
   // Telemetry Readouts
@@ -619,7 +628,6 @@ function animate() {
   const timeP1Formatted = formatTime(p1.finishTime !== null ? p1.finishTime : elapsed);
   const timeP2Formatted = formatTime(p2.finishTime !== null ? p2.finishTime : elapsed);
 
-  const activeMap = getMapByIndex(currentMapIndex);
   const totalGates = activeMap.waypoints.length;
   const distP1 = World.vortexRings[p1.currentRingIndex] ? Math.round(p1.pos.distanceTo(World.vortexRings[p1.currentRingIndex].pos)) : 0;
   const distP2 = World.vortexRings[p2.currentRingIndex] ? Math.round(p2.pos.distanceTo(World.vortexRings[p2.currentRingIndex].pos)) : 0;

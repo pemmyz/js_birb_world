@@ -149,6 +149,11 @@ export function loadMap(mapConfig) {
   terrainMesh.name = 'terrainMesh';
   islandGroup.add(terrainMesh);
 
+  // Custom Procedural Scene Hook (e.g. 18_city Metropolis structures, Central Park, instancing)
+  if (typeof mapConfig.onLoad === 'function') {
+    mapConfig.onLoad(islandGroup, scene);
+  }
+
   // 4. Procedural Props (Palm trees, Pines, etc.)
   if (mapConfig.props && mapConfig.props.count > 0 && mapConfig.props.type !== 'none') {
     const isPine = mapConfig.props.type === 'pines';
@@ -347,9 +352,15 @@ export function getWaterLevel() {
 }
 
 /**
- * Queries ground altitude (max of terrain height or active water surface) at world (x, z).
+ * Queries ground altitude (max of custom buildings/rooftops, terrain height, or active water surface) at world (x, z).
  */
 export function getGroundHeight(x, z) {
+  if (currentMapConfig && typeof currentMapConfig.getCustomGroundHeight === 'function') {
+    const customH = currentMapConfig.getCustomGroundHeight(x, z);
+    const waterH = currentWaterLevel > -450 ? currentWaterLevel : -Infinity;
+    return Math.max(customH, waterH);
+  }
+
   const terrainH = (currentMapConfig && currentMapConfig.terrain && typeof currentMapConfig.terrain.getHeightAt === 'function')
     ? currentMapConfig.terrain.getHeightAt(x, z)
     : 0;

@@ -1,5 +1,6 @@
 import { tropicalMap } from './01_tropical.js';
 import { canyonRiderMap } from './17_canyonrider.js';
+import { cityMap } from './18_city.js';
 
 // Helper to quickly construct procedural world definitions
 function createWorldConfig(base) {
@@ -26,7 +27,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '02_alpine',
-    number: '02/17',
+    number: '02/18',
     name: 'BIG MOUNTAIN',
     icon: '🏔️',
     biome: 'ALPINE',
@@ -59,7 +60,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '03_lakes',
-    number: '03/17',
+    number: '03/18',
     name: 'THOUSAND LAKES',
     icon: '🇫🇮',
     biome: 'NORDIC',
@@ -91,7 +92,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '04_forest',
-    number: '04/17',
+    number: '04/18',
     name: 'DEEP FOREST',
     icon: '🌲',
     biome: 'FOREST',
@@ -121,7 +122,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '05_dunes',
-    number: '05/17',
+    number: '05/18',
     name: 'DESERT DUNES',
     icon: '🏜️',
     biome: 'DESERT',
@@ -153,7 +154,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '06_snowdream',
-    number: '06/17',
+    number: '06/18',
     name: 'SNOW DREAM',
     icon: '❄️',
     biome: 'ARCTIC',
@@ -184,7 +185,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '07_tundra',
-    number: '07/17',
+    number: '07/18',
     name: 'FELLS OF LAPLAND',
     icon: '🏔️',
     biome: 'TUNDRA',
@@ -214,7 +215,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '08_archipelago',
-    number: '08/17',
+    number: '08/18',
     name: 'ARCHIPELAGO SEA',
     icon: '🌊',
     biome: 'COASTAL',
@@ -245,7 +246,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '09_volcano',
-    number: '09/17',
+    number: '09/18',
     name: 'VOLCANO ISLAND',
     icon: '🌋',
     biome: 'VOLCANIC',
@@ -279,7 +280,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '10_lostisland',
-    number: '10/17',
+    number: '10/18',
     name: 'LOST ISLAND',
     icon: '🦖',
     biome: 'JURASSIC',
@@ -310,7 +311,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '11_aurora',
-    number: '11/17',
+    number: '11/18',
     name: 'NORTHERN LIGHTS',
     icon: '🌌',
     biome: 'AURORA',
@@ -340,7 +341,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '12_giantforest',
-    number: '12/17',
+    number: '12/18',
     name: 'GIANT FOREST',
     icon: '🌳',
     biome: 'TITAN',
@@ -370,7 +371,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '13_valley',
-    number: '13/17',
+    number: '13/18',
     name: 'THE GREAT VALLEY',
     icon: '🏞️',
     biome: 'VALLEY',
@@ -401,7 +402,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '14_canyon',
-    number: '14/17',
+    number: '14/18',
     name: 'ROCK CANYON',
     icon: '🪨',
     biome: 'CANYON',
@@ -432,7 +433,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '15_cloudsea',
-    number: '15/17',
+    number: '15/18',
     name: 'SEA OF CLOUDS',
     icon: '☁️',
     biome: 'STRATO',
@@ -463,7 +464,7 @@ export const MAPS_LIST = [
 
   createWorldConfig({
     id: '16_fairyland',
-    number: '16/17',
+    number: '16/18',
     name: 'FAIRY REALM',
     icon: '🏰',
     biome: 'FANTASY',
@@ -492,7 +493,10 @@ export const MAPS_LIST = [
   }),
 
   // Map 17: Canyon Rider
-  canyonRiderMap
+  canyonRiderMap,
+
+  // Map 18: Metropolis Manhattan & Central Park
+  cityMap
 ];
 
 export function getMapByIndex(idx) {

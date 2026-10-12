@@ -1,3 +1,6 @@
+// --- src/flight.js ---
+// Aerodynamics Engine, Flight Kinematics, Telemetry & Camera Controller
+
 import { playRingChime } from './audio.js';
 
 export function createPlayerState() {
@@ -56,16 +59,16 @@ export function updatePlayerPhysics(
   const verticalSpeed = (player.pitch * 16.5) - 0.75;
   player.pos.y += verticalSpeed * delta;
 
-  // Ground & Water Collision Detection
+  // Ground, Rooftop & Water Collision Detection
   const groundAlt = getGroundHeight ? getGroundHeight(player.pos.x, player.pos.z) : 0;
   const minSafeAlt = groundAlt + 1.2;
 
   if (player.pos.y <= minSafeAlt) {
-    // Pop up and away to a safe distance from the ground
+    // Pop up and away to a safe distance from the obstacle
     const popDistance = 25.0;
     player.pos.y = groundAlt + popDistance;
 
-    // Pitch upward and level roll to push flight away from the ground
+    // Pitch upward and level roll to push flight away from obstacle
     player.pitch = 0.35;
     player.steerPitch = 0.35;
     player.roll *= 0.3;
@@ -124,7 +127,7 @@ export function updatePlayerPhysics(
   return currentAirspeed;
 }
 
-export function updatePlayerCamera(camera, player, delta) {
+export function updatePlayerCamera(camera, player, delta, currentMapConfig = null) {
   const forwardX = -Math.sin(player.yaw);
   const forwardZ = -Math.cos(player.yaw);
 
@@ -135,6 +138,18 @@ export function updatePlayerCamera(camera, player, delta) {
   if (player.intro.active) {
     player.intro.elapsed += delta;
     const progress = Math.min(player.intro.elapsed / player.intro.duration, 1.0);
+
+    // Cinematic Custom Flyover Handler (e.g. 18_city Metropolis Skyline & Central Park)
+    if (currentMapConfig && typeof currentMapConfig.cinematicFlyover === 'function') {
+      currentMapConfig.cinematicFlyover(camera, progress);
+      if (progress >= 1.0) {
+        player.intro.active = false;
+        camera.position.lerp(targetCamPos, delta * 5.0);
+      }
+      return;
+    }
+
+    // Default orbit camera
     const ease = 0.5 - 0.5 * Math.cos(progress * Math.PI);
     const orbitAngle = player.yaw + Math.PI + (ease * Math.PI * 2);
 
