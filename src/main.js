@@ -72,6 +72,13 @@ p1.pos.set(0, initialMap.spawns.p1.pos[1], initialMap.spawns.p1.pos[2]);
 p1.yaw = initialMap.spawns.p1.yaw || 0.0;
 p1.pitch = 0.0;
 p1.roll = 0.0;
+p1.startPos = p1.pos.clone();
+p1.startYaw = p1.yaw;
+p1.collisionHistory = [];
+p2.startPos = p2.pos.clone();
+p2.startYaw = p2.yaw;
+p2.collisionHistory = [];
+
 gliderP1.root.position.copy(p1.pos);
 gliderP1.root.rotation.set(0, p1.yaw, 0, 'YXZ');
 gliderP1.setVisible(true);
@@ -208,6 +215,9 @@ function resetFlightMatch() {
   p1.intro.active = true;
   p1.intro.elapsed = 0.0;
   p1.intro.duration = introDuration;
+  p1.startPos = p1.pos.clone();
+  p1.startYaw = p1.yaw;
+  p1.collisionHistory = [];
 
   if (selectedMode === 'coop') {
     const totalG = activeMap.waypoints.length;
@@ -230,6 +240,9 @@ function resetFlightMatch() {
     p2.intro.active = true;
     p2.intro.elapsed = 0.0;
     p2.intro.duration = introDuration;
+    p2.startPos = p2.pos.clone();
+    p2.startYaw = p2.yaw;
+    p2.collisionHistory = [];
   } else {
     p2.pos.set(8, activeMap.spawns.p1.pos[1], activeMap.spawns.p1.pos[2]);
     p2.yaw = activeMap.spawns.p2Race.yaw || 0.0;
@@ -245,6 +258,9 @@ function resetFlightMatch() {
     p2.intro.active = true;
     p2.intro.elapsed = 0.0;
     p2.intro.duration = introDuration;
+    p2.startPos = p2.pos.clone();
+    p2.startYaw = p2.yaw;
+    p2.collisionHistory = [];
   }
 
   if (selectedMode === 'single') {
@@ -394,9 +410,47 @@ function onGateCleared(playerId) {
   UI.triggerRingPopup(playerId);
 }
 
+function resetPlayerToStart(playerId) {
+  const player = (playerId === 'p1') ? p1 : p2;
+  const glider = (playerId === 'p1') ? gliderP1 : gliderP2;
+  if (!player.startPos) return;
+
+  player.pos.copy(player.startPos);
+  player.yaw = player.startYaw || 0.0;
+  player.pitch = 0.0;
+  player.roll = 0.0;
+  player.steerX = 0;
+  player.steerPitch = 0;
+  player.speed = 14.0;
+  player.collisionHistory = [];
+
+  glider.root.position.copy(player.pos);
+  glider.root.rotation.set(0, player.yaw, 0, 'YXZ');
+
+  const cam = (playerId === 'p1') ? World.camera1 : World.camera2;
+  if (cam) {
+    const chaseOffset = new THREE.Vector3(0, 3.2, 10.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
+    cam.position.copy(player.pos.clone().add(chaseOffset));
+    const forwardX = -Math.sin(player.yaw);
+    const forwardZ = -Math.cos(player.yaw);
+    cam.lookAt(player.pos.clone().add(new THREE.Vector3(forwardX * 20, -1.0, forwardZ * 20)));
+  }
+}
+
 function onLowAltWarning(playerId) {
   UI.showLowAltWarning(playerId);
   Audio.playCheckpointPlonk(0.55);
+
+  const now = performance.now();
+  const player = (playerId === 'p1') ? p1 : p2;
+  player.collisionHistory = (player.collisionHistory || []).filter(t => now - t <= 15000);
+  const lastHit = player.collisionHistory[player.collisionHistory.length - 1] || 0;
+  if (now - lastHit >= 500) {
+    player.collisionHistory.push(now);
+  }
+  if (player.collisionHistory.length >= 3) {
+    resetPlayerToStart(playerId);
+  }
 }
 
 function onFinish(playerId) {
